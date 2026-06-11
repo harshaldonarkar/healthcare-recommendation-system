@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}My Medication Schedule{% endblock %}
+{% block meta_description %}View and manage your medication schedules, track doses, and send reminder emails.{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <div class="container">
+        <h1><i class="fas fa-pills mr-3" aria-hidden="true"></i>My Medication Schedule</h1>
+        <p style="opacity:0.85; margin-top:var(--space-2);">Track your medications, upcoming doses, and reminder emails.</p>
+    </div>
+</div>
+
+<div class="container py-8">
+
+    <!-- Send Reminder Section -->
+    <div class="card mb-8">
+        <div class="card-body">
+            <h2 class="text-xl font-bold mb-4"><i class="fas fa-bell mr-2" aria-hidden="true"></i>Send Today's Reminder</h2>
+            <div class="flex gap-4 align-center" style="flex-wrap:wrap;">
+                <div class="flex-grow">
+                    <label for="reminderEmail" class="form-label">Your email address</label>
+                    <input type="email" id="reminderEmail" class="form-input" placeholder="you@example.com">
+                </div>
+                <div style="display:flex; align-items:flex-end;">
+                    <button type="button" id="sendReminderBtn" class="btn btn-primary">
+                        <i class="fas fa-paper-plane mr-2" aria-hidden="true"></i>Send Reminder
+                    </button>
+                </div>
+            </div>
+            <div id="reminderStatus" class="mt-3" style="display:none;"></div>
+        </div>
+    </div>
+
+    <!-- Today's Medications -->
+    <div class="card mb-8">
+        <div class="card-body">
+            <h2 class="text-xl font-bold mb-4"><i class="fas fa-calendar-day mr-2" aria-hidden="true"></i>Today's Medications</h2>
+            {% if today_meds %}
+            <div class="grid grid-cols-3 gap-4">
+                {% for med in today_meds %}
+                <div class="card" style="border:1px solid var(--primary-200);">
+                    <div class="card-body">
+                        <h3 class="font-bold mb-1">{{ med.get('name', 'Medication') }}</h3>
+                        <p class="text-secondary text-sm mb-1">
+                            <i class="fas fa-clock mr-1" aria-hidden="true"></i>
+                            {{ med.get('time', 'As directed') }}
+                        </p>
+                        <p class="text-secondary text-sm">
+                            <i class="fas fa-capsules mr-1" aria-hidden="true"></i>
+                            {{ med.get('dosage', 'See instructions') }}
+                        </p>
+                        {% if med.get('notes') %}
+                        <p class="text-muted text-sm mt-2">{{ med.notes }}</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i class="fas fa-check-circle" style="font-size:2.5rem; color:var(--success); display:block; margin-bottom:var(--space-3);" aria-hidden="true"></i>
+                <p class="text-secondary">No medications scheduled for today, or no schedules created yet.</p>
+                <a href="/my-treatment-plans" class="btn btn-outline mt-4">
+                    <i class="fas fa-clipboard-list mr-2" aria-hidden="true"></i>View Treatment Plans
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- All Schedules -->
+    <div class="card">
+        <div class="card-body">
+            <h2 class="text-xl font-bold mb-4"><i class="fas fa-list-ul mr-2" aria-hidden="true"></i>All Medication Schedules</h2>
+            {% if schedules %}
+            <div class="grid grid-cols-2 gap-6">
+                {% for schedule in schedules %}
+                <div class="card" style="border:1px solid var(--border-color);">
+                    <div class="card-body">
+                        <div class="flex justify-between align-center mb-3">
+                            <h3 class="font-bold">Schedule #{{ loop.index }}</h3>
+                            <span class="badge badge-primary">{{ schedule.get('medications', []) | length }} meds</span>
+                        </div>
+                        {% for med in schedule.get('medications', [])[:3] %}
+                        <div class="flex align-center gap-2 mb-2">
+                            <i class="fas fa-pills" style="color:var(--primary-500);" aria-hidden="true"></i>
+                            <span class="text-sm">{{ med.get('name', 'Medication') }}
+                                {% if med.get('dosage') %}<span class="text-muted">— {{ med.dosage }}</span>{% endif %}
+                            </span>
+                        </div>
+                        {% endfor %}
+                        {% if schedule.get('medications', []) | length > 3 %}
+                        <p class="text-muted text-sm">+{{ schedule.get('medications', []) | length - 3 }} more</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-8">
+                <i class="fas fa-calendar-plus" style="font-size:2.5rem; color:var(--text-muted); display:block; margin-bottom:var(--space-3);" aria-hidden="true"></i>
+                <p class="text-secondary">No medication schedules yet. Create a treatment plan to get started.</p>
+                <a href="/my-treatment-plans" class="btn btn-primary mt-4">
+                    <i class="fas fa-plus mr-2" aria-hidden="true"></i>Create Treatment Plan
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function MedicationReminders() {
+    var btn = document.getElementById('sendReminderBtn');
+    var emailInput = document.getElementById('reminderEmail');
+    var status = document.getElementById('reminderStatus');
+    if (!btn) return;
+    btn.addEventListener('click', function() {
+        var email = emailInput.value.trim();
+        if (!email || !email.includes('@')) {
+            status.style.display = '';
+            status.innerHTML = '<div class="alert alert-danger"><div class="alert-icon"><i class="fas fa-exclamation-circle"></i></div><div class="alert-content">Please enter a valid email address.</div></div>';
+            return;
+        }
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Sending…';
+        fetch('/api/send-reminders', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('[name="csrf_token"]') ? document.querySelector('[name="csrf_token"]').value : ''},
+            body: JSON.stringify({email: email})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            status.style.display = '';
+            if (data.error) {
+                status.innerHTML = '<div class="alert alert-danger"><div class="alert-icon"><i class="fas fa-exclamation-circle"></i></div><div class="alert-content">' + data.error + '</div></div>';
+            } else {
+                status.innerHTML = '<div class="alert alert-success"><div class="alert-icon"><i class="fas fa-check-circle"></i></div><div class="alert-content">' + data.message + '</div></div>';
+            }
+        })
+        .catch(function() {
+            status.style.display = '';
+            status.innerHTML = '<div class="alert alert-danger"><div class="alert-icon"><i class="fas fa-exclamation-circle"></i></div><div class="alert-content">Failed to send reminder. Please try again.</div></div>';
+        })
+        .finally(function() {
+            btn.disabled = false;
+            btn.innerHTML = '<i class="fas fa-paper-plane mr-2"></i>Send Reminder';
+        });
+    });
+})();
+</script>
+{% endblock %}

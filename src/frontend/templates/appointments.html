@@ -1,0 +1,135 @@
+{% extends "base.html" %}
+{% block title %}My Appointments{% endblock %}
+{% block meta_description %}Manage and track your healthcare appointments.{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <!-- Header -->
+    <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+        <div>
+            <h1 class="text-4xl font-bold"><i class="fas fa-calendar-alt mr-2 text-primary" aria-hidden="true"></i>My Appointments</h1>
+            <p class="text-muted mt-1">Manage and track your healthcare visits</p>
+        </div>
+        <a href="/appointments/new" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus mr-2" aria-hidden="true"></i>Book Appointment
+        </a>
+    </div>
+
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} mb-6" role="alert">
+                <div class="alert-icon"><i class="fas fa-check-circle" aria-hidden="true"></i></div>
+                <div class="alert-content">{{ message }}</div>
+            </div>
+        {% endfor %}
+    {% endwith %}
+
+    <!-- Upcoming Appointments -->
+    <div class="mb-10">
+        <h2 class="text-2xl font-bold mb-4"><i class="fas fa-clock mr-2 text-primary" aria-hidden="true"></i>Upcoming</h2>
+
+        {% if upcoming %}
+            <div class="grid" style="grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--space-6);">
+                {% for appt in upcoming %}
+                    <div class="card shadow-md">
+                        <div class="card-header bg-gradient-primary text-white flex justify-between items-start">
+                            <div>
+                                <h4 class="font-semibold mb-1"><i class="fas fa-stethoscope mr-2" aria-hidden="true"></i>{{ appt.appointment_type }}</h4>
+                                <p class="text-sm opacity-90">{{ appt.provider_name }}</p>
+                            </div>
+                            <span class="badge badge-info">Scheduled</span>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <p class="mb-2"><i class="fas fa-calendar mr-2 text-primary" aria-hidden="true"></i>
+                                    <strong>{{ appt.appointment_date.strftime('%d %B %Y') if appt.appointment_date else 'TBD' }}</strong>
+                                </p>
+                                <p class="mb-2 text-sm text-muted"><i class="fas fa-clock mr-2" aria-hidden="true"></i>
+                                    {{ appt.appointment_date.strftime('%I:%M %p') if appt.appointment_date else 'Time TBD' }}
+                                </p>
+                            </div>
+                            {% if appt.location %}
+                                <p class="mb-3 text-sm"><i class="fas fa-map-marker-alt mr-2 text-primary" aria-hidden="true"></i>{{ appt.location }}</p>
+                            {% endif %}
+                            {% if appt.notes %}
+                                <p class="mb-3 text-sm text-muted" style="background:var(--bg-secondary); padding:var(--space-3); border-radius:var(--radius-md);">
+                                    <strong>Notes:</strong> {{ appt.notes }}
+                                </p>
+                            {% endif %}
+                        </div>
+                        <div class="card-footer flex gap-2 justify-between">
+                            <form method="POST" action="/appointments/{{ appt.appointment_id }}/complete" style="flex:1;">
+                                <button class="btn btn-success btn-sm w-full"><i class="fas fa-check mr-1" aria-hidden="true"></i>Done</button>
+                            </form>
+                            <form method="POST" action="/appointments/{{ appt.appointment_id }}/cancel" style="flex:1;">
+                                <button class="btn btn-outline btn-sm w-full"><i class="fas fa-times mr-1" aria-hidden="true"></i>Cancel</button>
+                            </form>
+                            <form method="POST" action="/appointments/{{ appt.appointment_id }}/delete" style="flex:0;">
+                                <button class="btn btn-outline btn-sm" type="submit" aria-label="Delete appointment"><i class="fas fa-trash" aria-hidden="true"></i></button>
+                            </form>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info text-center" style="padding:var(--space-8);">
+                <i class="fas fa-calendar-plus" style="font-size:2rem; display:block; margin-bottom:var(--space-3);" aria-hidden="true"></i>
+                <h4 class="font-semibold mb-2">No Upcoming Appointments</h4>
+                <p class="text-muted mb-4">You don't have any scheduled appointments at the moment.</p>
+                <a href="/appointments/new" class="btn btn-primary btn-sm">
+                    <i class="fas fa-plus mr-1" aria-hidden="true"></i>Book Your First Appointment
+                </a>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Past & Cancelled Appointments -->
+    {% if past %}
+        <div class="mb-10">
+            <h2 class="text-2xl font-bold mb-4"><i class="fas fa-history mr-2 text-secondary" aria-hidden="true"></i>Past &amp; Cancelled</h2>
+
+            <div class="table-wrapper">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th><i class="fas fa-hospital-alt mr-2" aria-hidden="true"></i>Provider</th>
+                            <th><i class="fas fa-stethoscope mr-2" aria-hidden="true"></i>Type</th>
+                            <th><i class="fas fa-calendar mr-2" aria-hidden="true"></i>Date</th>
+                            <th><i class="fas fa-map-marker-alt mr-2" aria-hidden="true"></i>Location</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appt in past %}
+                            <tr>
+                                <td class="font-semibold">{{ appt.provider_name }}</td>
+                                <td>{{ appt.appointment_type }}</td>
+                                <td>{{ appt.appointment_date.strftime('%d %b %Y') if appt.appointment_date else '-' }}</td>
+                                <td class="text-sm text-muted">{{ appt.location or '-' }}</td>
+                                <td>
+                                    {% if appt.status == 'completed' %}
+                                        <span class="badge badge-success"><i class="fas fa-check-circle mr-1" aria-hidden="true"></i>Completed</span>
+                                    {% elif appt.status == 'cancelled' %}
+                                        <span class="badge badge-danger"><i class="fas fa-times-circle mr-1" aria-hidden="true"></i>Cancelled</span>
+                                    {% else %}
+                                        <span class="badge badge-secondary">{{ appt.status | capitalize }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <form method="POST" action="/appointments/{{ appt.appointment_id }}/delete" style="display:inline;">
+                                        <button class="btn btn-outline btn-sm" type="submit" aria-label="Delete appointment">
+                                            <i class="fas fa-trash" aria-hidden="true"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    {% endif %}
+</main>
+{% endblock %}

@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% block title %}Chest X-Ray Analysis{% endblock %}
+{% block meta_description %}AI-powered chest X-ray analysis detecting 14 pathologies using DenseNet-121.{% endblock %}
+
+{% block extra_head %}
+<style>
+.xray-dropzone { border:2px dashed var(--primary-400); border-radius:var(--radius-2xl); padding:var(--space-12); text-align:center; background:linear-gradient(135deg,var(--primary-50) 0%,var(--primary-100) 100%); transition:all var(--transition-base); cursor:pointer; }
+.xray-dropzone:hover, .xray-dropzone.drag-active { border-color:var(--primary-600); background:linear-gradient(135deg,var(--primary-100) 0%,var(--primary-200) 100%); box-shadow:var(--shadow-md); }
+.section-card { background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-2xl); padding:var(--space-6); margin-bottom:var(--space-6); }
+.pathology-bar { display:flex; align-items:center; gap:var(--space-3); margin-bottom:var(--space-3); }
+.pathology-name { width:200px; font-size:0.9rem; color:var(--text-primary); flex-shrink:0; }
+.bar-track { flex:1; height:12px; background:var(--gray-200); border-radius:var(--radius-full); overflow:hidden; }
+.bar-fill { height:100%; border-radius:var(--radius-full); transition:width 0.8s ease; }
+.bar-fill.urgent   { background:var(--danger); }
+.bar-fill.moderate { background:var(--warning); }
+.bar-fill.mild     { background:var(--primary-400); }
+.bar-fill.normal   { background:var(--success); }
+.prob-label { width:55px; font-size:0.85rem; color:var(--text-secondary); text-align:right; flex-shrink:0; }
+.severity-badge { display:inline-block; padding:2px 8px; border-radius:var(--radius-full); font-size:0.72rem; font-weight:600; text-transform:uppercase; flex-shrink:0; width:68px; text-align:center; }
+.badge-urgent   { background:var(--danger-light);   color:var(--danger-dark); }
+.badge-moderate { background:var(--warning-light);  color:var(--warning-dark); }
+.badge-mild     { background:var(--primary-100);    color:var(--primary-700); }
+.badge-normal   { background:var(--success-light);  color:var(--success-dark); }
+.finding-chip { display:inline-block; padding:var(--space-1) var(--space-3); border-radius:var(--radius-full); font-size:0.82rem; font-weight:600; margin:var(--space-1); }
+.chip-urgent   { background:var(--danger-light);  color:var(--danger-dark);  border:1px solid var(--danger); }
+.chip-moderate { background:var(--warning-light); color:var(--warning-dark); border:1px solid var(--warning); }
+.chip-mild     { background:var(--primary-100);   color:var(--primary-700);  border:1px solid var(--primary-400); }
+.preview-img { max-width:100%; max-height:400px; border-radius:var(--radius-xl); border:2px solid var(--border-color); display:block; margin:0 auto; }
+.gradcam-img { max-width:100%; border-radius:var(--radius-xl); cursor:pointer; }
+.disclaimer { background:var(--warning-light); border:1px solid var(--warning); border-radius:var(--radius-lg); padding:var(--space-4); font-size:0.85rem; color:var(--warning-dark); }
+input[type="file"] { display:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2">
+            <i class="fas fa-lungs mr-2 text-primary" aria-hidden="true"></i>Chest X-Ray Analysis
+        </h1>
+        <p class="text-secondary">
+            AI screening for 14 chest pathologies using DenseNet-121 trained on
+            NIH ChestX-ray14 &amp; CheXpert (400k+ images)
+        </p>
+    </div>
+
+    <!-- Disclaimer -->
+    <div class="disclaimer mb-6">
+        <i class="fas fa-exclamation-triangle mr-2"></i>
+        <strong>Research / Educational Use Only.</strong>
+        This tool is a preliminary AI screening assistant and does <strong>not</strong>
+        replace radiologist interpretation. Always have X-rays formally reported by a
+        qualified radiologist before making any clinical decisions.
+    </div>
+
+    <!-- Upload section -->
+    <div class="section-card">
+        <h2 class="text-xl font-semibold mb-4"><i class="fas fa-upload mr-2 text-primary"></i>Upload X-Ray</h2>
+
+        <label for="xray-file-input">
+            <div class="xray-dropzone" id="xray-dropzone">
+                <i class="fas fa-x-ray fa-3x text-primary mb-4" style="display:block;"></i>
+                <p class="text-lg font-semibold mb-2">Drop X-ray image here or click to browse</p>
+                <p class="text-secondary text-sm">Supports JPG / PNG · Max 20 MB · Chest PA/AP views work best</p>
+            </div>
+        </label>
+        <input type="file" id="xray-file-input" accept=".jpg,.jpeg,.png">
+
+        <div id="preview-container" class="mt-4" style="display:none;">
+            <img id="preview-img" class="preview-img" alt="X-ray preview">
+        </div>
+
+        <div class="mt-4">
+            <button id="analyze-btn" class="btn btn-primary" disabled>
+                <i class="fas fa-search mr-2"></i>Analyze X-Ray
+            </button>
+            <span id="loading-msg" style="display:none; margin-left:var(--space-4);" class="text-secondary">
+                <i class="fas fa-spinner fa-spin mr-2"></i>Analyzing… this may take 20–60 seconds on first run (model loading)
+            </span>
+        </div>
+    </div>
+
+    <!-- Results section (hidden until analysis completes) -->
+    <div id="results-section" style="display:none;">
+
+        <!-- Summary banner -->
+        <div id="summary-banner" class="section-card mb-4"></div>
+
+        <!-- Findings chips -->
+        <div id="findings-section" class="section-card" style="display:none;">
+            <h3 class="text-lg font-semibold mb-3">
+                <i class="fas fa-flag mr-2 text-warning"></i>Detected Findings
+            </h3>
+            <div id="findings-chips"></div>
+        </div>
+
+        <!-- Full probability chart -->
+        <div class="section-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-4);">
+                <h3 class="text-lg font-semibold"><i class="fas fa-chart-bar mr-2 text-primary"></i>All Pathologies</h3>
+                <div>
+                    <label style="font-size:0.85rem; color:var(--text-secondary); margin-right:var(--space-2);">
+                        Sort by:
+                    </label>
+                    <select id="sort-select" style="padding:var(--space-1) var(--space-2); border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-secondary); color:var(--text-primary);">
+                        <option value="prob">Probability ↓</option>
+                        <option value="alpha">Alphabetical</option>
+                        <option value="sev">Severity</option>
+                    </select>
+                </div>
+            </div>
+            <div id="pathology-bars"></div>
+        </div>
+
+        <!-- Grad-CAM section -->
+        <div class="section-card">
+            <h3 class="text-lg font-semibold mb-3">
+                <i class="fas fa-heat-map mr-2 text-primary"></i>Grad-CAM Heatmap
+                <span class="text-secondary text-sm font-normal ml-2">(shows what the model focused on)</span>
+            </h3>
+            <p class="text-secondary text-sm mb-3">Select a pathology to visualize the model's attention area:</p>
+            <div style="display:flex; gap:var(--space-3); align-items:center; flex-wrap:wrap;">
+                <select id="gradcam-select" style="padding:var(--space-2) var(--space-3); border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--bg-secondary); color:var(--text-primary); min-width:200px;"></select>
+                <button id="gradcam-btn" class="btn btn-secondary">
+                    <i class="fas fa-eye mr-2"></i>Generate Heatmap
+                </button>
+                <span id="gradcam-loading" style="display:none;" class="text-secondary text-sm">
+                    <i class="fas fa-spinner fa-spin mr-1"></i>Generating…
+                </span>
+            </div>
+            <div id="gradcam-result" class="mt-4" style="display:none;">
+                <img id="gradcam-img" class="gradcam-img" alt="Grad-CAM heatmap" style="max-height:400px;">
+                <p class="text-secondary text-sm mt-2">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Red/yellow regions indicate areas the model weighted most for this pathology.
+                </p>
+            </div>
+            <div id="gradcam-error" class="mt-3" style="display:none;">
+                <p class="text-secondary text-sm">
+                    <i class="fas fa-exclamation-circle mr-1 text-warning"></i>
+                    Grad-CAM requires <code>grad-cam</code> package:
+                    <code>pip install grad-cam</code>
+                </p>
+            </div>
+        </div>
+
+        <!-- Model info -->
+        <div class="section-card">
+            <h3 class="text-lg font-semibold mb-2"><i class="fas fa-info-circle mr-2 text-primary"></i>Model Information</h3>
+            <table style="font-size:0.88rem; color:var(--text-secondary); border-collapse:collapse; width:100%;">
+                <tr><td style="padding:4px 8px; font-weight:600; color:var(--text-primary);">Architecture</td><td>DenseNet-121</td></tr>
+                <tr><td style="padding:4px 8px; font-weight:600; color:var(--text-primary);">Weights</td><td>densenet121-res224-all</td></tr>
+                <tr><td style="padding:4px 8px; font-weight:600; color:var(--text-primary);">Training data</td><td>NIH ChestX-ray14 · CheXpert · RSNA · MIMIC · PadChest (~400k images)</td></tr>
+                <tr><td style="padding:4px 8px; font-weight:600; color:var(--text-primary);">Pathologies</td><td>14 (Atelectasis, Cardiomegaly, Effusion, Infiltration, Mass, Nodule, Pneumonia, Pneumothorax, Consolidation, Edema, Emphysema, Fibrosis, Pleural Thickening, Hernia)</td></tr>
+                <tr><td style="padding:4px 8px; font-weight:600; color:var(--text-primary);">Library</td><td>torchxrayvision (Cohen et al., 2020)</td></tr>
+            </table>
+        </div>
+    </div>
+
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function () {
+    let selectedFile = null;
+    let analysisResult = null;
+
+    const dropzone   = document.getElementById('xray-dropzone');
+    const fileInput  = document.getElementById('xray-file-input');
+    const previewCtr = document.getElementById('preview-container');
+    const previewImg = document.getElementById('preview-img');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const loadingMsg = document.getElementById('loading-msg');
+    const resultsSec = document.getElementById('results-section');
+
+    // ── Drag-and-drop ──────────────────────────────────────────────────────────
+    dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-active'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-active'));
+    dropzone.addEventListener('drop', e => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-active');
+        const file = e.dataTransfer.files[0];
+        if (file) handleFile(file);
+    });
+    fileInput.addEventListener('change', () => {
+        if (fileInput.files[0]) handleFile(fileInput.files[0]);
+    });
+
+    function handleFile(file) {
+        const allowed = ['image/jpeg', 'image/jpg', 'image/png'];
+        if (!allowed.includes(file.type)) {
+            alert('Please upload a JPG or PNG image.');
+            return;
+        }
+        selectedFile = file;
+        const reader = new FileReader();
+        reader.onload = e => {
+            previewImg.src = e.target.result;
+            previewCtr.style.display = 'block';
+        };
+        reader.readAsDataURL(file);
+        analyzeBtn.disabled = false;
+        resultsSec.style.display = 'none';
+    }
+
+    // ── Analyze ────────────────────────────────────────────────────────────────
+    analyzeBtn.addEventListener('click', async () => {
+        if (!selectedFile) return;
+        analyzeBtn.disabled = true;
+        loadingMsg.style.display = 'inline';
+        resultsSec.style.display = 'none';
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        try {
+            const resp = await fetch('/api/xray/analyze', { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (!resp.ok || data.error) {
+                alert('Error: ' + (data.error || 'Unknown error'));
+                return;
+            }
+
+            analysisResult = data;
+            renderResults(data);
+            resultsSec.style.display = 'block';
+            resultsSec.scrollIntoView({ behavior: 'smooth' });
+
+        } catch (err) {
+            alert('Request failed: ' + err.message);
+        } finally {
+            analyzeBtn.disabled = false;
+            loadingMsg.style.display = 'none';
+        }
+    });
+
+    // ── Render results ─────────────────────────────────────────────────────────
+    function renderResults(data) {
+        // Summary banner
+        const banner = document.getElementById('summary-banner');
+        const color  = data.urgent ? 'var(--danger)' : (data.findings.length ? 'var(--warning)' : 'var(--success)');
+        banner.innerHTML = `
+            <div style="display:flex; align-items:flex-start; gap:var(--space-3);">
+                <i class="fas ${data.urgent ? 'fa-exclamation-circle' : data.findings.length ? 'fa-info-circle' : 'fa-check-circle'} fa-2x mt-1" style="color:${color};"></i>
+                <div>
+                    <p class="font-semibold" style="color:${color}; font-size:1.05rem;">${data.urgent ? 'Urgent findings detected' : data.findings.length ? 'Findings detected' : 'No significant findings'}</p>
+                    <p class="text-secondary text-sm mt-1">${data.summary}</p>
+                </div>
+            </div>`;
+
+        // Findings chips
+        const findingsSec   = document.getElementById('findings-section');
+        const findingsChips = document.getElementById('findings-chips');
+        if (data.findings.length) {
+            findingsSec.style.display = 'block';
+            findingsChips.innerHTML = data.pathologies
+                .filter(p => p.detected)
+                .map(p => `<span class="finding-chip chip-${p.severity}">${p.name} (${(p.probability * 100).toFixed(1)}%)</span>`)
+                .join('');
+        } else {
+            findingsSec.style.display = 'none';
+        }
+
+        // Pathology bars
+        renderBars(data.pathologies, 'prob');
+
+        // Sort control
+        document.getElementById('sort-select').addEventListener('change', function () {
+            renderBars(data.pathologies, this.value);
+        });
+
+        // Grad-CAM select
+        const gcSelect = document.getElementById('gradcam-select');
+        gcSelect.innerHTML = data.pathologies
+            .map(p => `<option value="${p.name}">${p.name} (${(p.probability * 100).toFixed(1)}%)</option>`)
+            .join('');
+    }
+
+    function renderBars(pathologies, sortBy) {
+        let sorted = [...pathologies];
+        const sevOrder = { urgent: 0, moderate: 1, mild: 2, normal: 3 };
+        if (sortBy === 'prob')  sorted.sort((a, b) => b.probability - a.probability);
+        if (sortBy === 'alpha') sorted.sort((a, b) => a.name.localeCompare(b.name));
+        if (sortBy === 'sev')   sorted.sort((a, b) => sevOrder[a.severity] - sevOrder[b.severity]);
+
+        const container = document.getElementById('pathology-bars');
+        container.innerHTML = sorted.map(p => `
+            <div class="pathology-bar">
+                <span class="pathology-name">${p.name}</span>
+                <div class="bar-track">
+                    <div class="bar-fill ${p.severity}" style="width:${(p.probability * 100).toFixed(1)}%"></div>
+                </div>
+                <span class="prob-label">${(p.probability * 100).toFixed(1)}%</span>
+                <span class="severity-badge badge-${p.severity}">${p.severity}</span>
+            </div>`).join('');
+    }
+
+    // ── Grad-CAM ───────────────────────────────────────────────────────────────
+    document.getElementById('gradcam-btn').addEventListener('click', async () => {
+        if (!selectedFile || !analysisResult) return;
+
+        const target  = document.getElementById('gradcam-select').value;
+        const loading = document.getElementById('gradcam-loading');
+        const result  = document.getElementById('gradcam-result');
+        const errDiv  = document.getElementById('gradcam-error');
+        const gcImg   = document.getElementById('gradcam-img');
+
+        loading.style.display  = 'inline';
+        result.style.display   = 'none';
+        errDiv.style.display   = 'none';
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+        formData.append('target_pathology', target);
+
+        try {
+            const resp = await fetch('/api/xray/gradcam', { method: 'POST', body: formData });
+            const data = await resp.json();
+
+            if (!resp.ok || data.error) {
+                errDiv.style.display = 'block';
+                return;
+            }
+
+            gcImg.src = 'data:image/png;base64,' + data.heatmap_b64;
+            result.style.display = 'block';
+
+        } catch (err) {
+            errDiv.style.display = 'block';
+        } finally {
+            loading.style.display = 'none';
+        }
+    });
+
+})();
+</script>
+{% endblock %}

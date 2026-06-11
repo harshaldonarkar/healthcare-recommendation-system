@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block meta_description %}Health Advisor — AI-powered symptom analysis and personalized healthcare recommendations{% endblock %}">
+    <title>{% block title %}Home{% endblock %} — Health Advisor</title>
+
+    <!-- Apply saved theme before CSS (prevents flash); .js gates scroll-reveal styles -->
+    <script>(function(){document.documentElement.classList.add('js');var t=localStorage.getItem('theme');if(t){document.documentElement.setAttribute('data-theme',t);}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.setAttribute('data-theme','dark');}})()</script>
+
+    <!-- Preconnects -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/enhancements.css') }}">
+
+    <!-- CSRF token for AJAX requests -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <a href="#main-content" class="skip-to-content">Skip to main content</a>
+
+    <!-- Emergency Banner -->
+    <div id="emergencyBanner" class="emergency-banner" style="display:none;" role="alert" aria-live="assertive">
+        <div class="container">
+            <div class="emergency-banner-content">
+                <i class="fas fa-ambulance" aria-hidden="true"></i>
+                <span id="emergencyBannerText">Your symptoms may require immediate medical attention.</span>
+                <strong>&nbsp;Call emergency services (112/911) immediately.</strong>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar" id="mainNav" role="navigation" aria-label="Main navigation">
+        <div class="container">
+            <div class="navbar-content">
+
+                <!-- Brand -->
+                <a href="/" class="navbar-brand" aria-label="Health Advisor home">
+                    <div class="navbar-brand-icon" aria-hidden="true">
+                        <i class="fas fa-heartbeat"></i>
+                    </div>
+                    <span>Health Advisor</span>
+                </a>
+
+                <!-- Nav links -->
+                <ul class="navbar-nav" id="navbarMenu">
+                    <li>
+                        <a href="/" {% if request.path == '/' %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-house" aria-hidden="true"></i>Home
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/diseases-list" {% if '/diseases' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-book-medical" aria-hidden="true"></i>Diseases
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/lab-analysis" {% if '/lab' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-flask" aria-hidden="true"></i>Lab Analysis
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/xray-analysis" {% if '/xray' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-x-ray" aria-hidden="true"></i>X-Ray
+                            <span class="nav-new-badge">NEW</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/my-treatment-plans" {% if '/treatment' in request.path or '/my-treatment' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-clipboard-list" aria-hidden="true"></i>Plans
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/appointments" {% if '/appointments' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-calendar-check" aria-hidden="true"></i>Appointments
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/medication-schedules" {% if '/medication-schedules' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-pills" aria-hidden="true"></i>Medications
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/doctors/search" {% if '/doctors' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-hospital" aria-hidden="true"></i>Hospitals
+                        </a>
+                    </li>
+                    {% if session.get('user_id') %}
+                    <li>
+                        <a href="/logout">
+                            <i class="fas fa-arrow-right-from-bracket" aria-hidden="true"></i>Logout
+                        </a>
+                    </li>
+                    {% else %}
+                    <li>
+                        <a href="/login" {% if '/login' in request.path %}class="active" aria-current="page"{% endif %}>
+                            <i class="fas fa-arrow-right-to-bracket" aria-hidden="true"></i>Login
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <!-- Actions -->
+                <div class="navbar-actions" style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                    <!-- Command palette trigger -->
+                    <button id="cmdBtn" class="btn btn-ghost"
+                            title="Quick navigation (⌘K)"
+                            aria-label="Open command palette"
+                            style="font-size:0.78rem; color:var(--text-muted); border:1px solid var(--border-color); display:flex; align-items:center; gap:6px; padding:5px 10px; height:32px;">
+                        <i class="fas fa-magnifying-glass" style="font-size:0.72rem;"></i>
+                        <span style="font-size:0.75rem;">Search</span>
+                        <kbd style="margin-left:2px; opacity:.6;">⌘K</kbd>
+                    </button>
+                    <!-- Dark mode -->
+                    <button id="darkModeToggle" class="btn btn-ghost"
+                            title="Toggle dark mode"
+                            aria-label="Toggle dark mode"
+                            aria-pressed="false">
+                        <i class="fas fa-moon" aria-hidden="true"></i>
+                    </button>
+                    <!-- Mobile hamburger -->
+                    <button class="navbar-hamburger" id="navbarToggle"
+                            aria-expanded="false" aria-controls="navbarMenu"
+                            aria-label="Toggle navigation menu"
+                            style="display:none;">
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                        <span aria-hidden="true"></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Command Palette -->
+    <div id="cmd-overlay" role="dialog" aria-label="Quick navigation" aria-modal="true">
+        <div id="cmd-palette">
+            <input id="cmd-input" type="text" placeholder="Search pages, features…" autocomplete="off" spellcheck="false">
+            <div id="cmd-results"></div>
+            <div class="cmd-footer">
+                <span class="cmd-key"><kbd>↑↓</kbd> navigate</span>
+                <span class="cmd-key"><kbd>↵</kbd> go</span>
+                <span class="cmd-key"><kbd>Esc</kbd> close</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast container -->
+    <div id="toast-container" aria-live="polite" aria-atomic="true"></div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" role="status" aria-label="Analyzing symptoms" aria-live="polite">
+        <div class="loading-spinner" aria-hidden="true"></div>
+        <div class="loading-text">
+            <i class="fas fa-brain mr-2" aria-hidden="true"></i>Analyzing your symptoms…
+        </div>
+    </div>
+
+    <!-- Page content -->
+    <main id="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t py-8 mt-12" role="contentinfo">
+        <div class="container">
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-8); margin-bottom:var(--space-8);">
+                <div>
+                    <div style="display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2);">
+                        <div class="navbar-brand-icon" style="width:24px;height:24px;font-size:0.7rem;" aria-hidden="true">
+                            <i class="fas fa-heartbeat"></i>
+                        </div>
+                        <span class="font-bold">Health Advisor</span>
+                    </div>
+                    <p class="text-secondary text-sm">AI-powered personalized healthcare recommendations.</p>
+                    <p class="text-muted" style="font-size:0.75rem; margin-top:var(--space-2);">BERT + DDXPlus · 102+ Diseases · X-Ray AI · Free to use</p>
+                </div>
+                <div style="text-align:right;">
+                    <p class="text-secondary text-sm mb-2">© 2026 Health Advisor.</p>
+                    <div style="display:flex; gap:var(--space-3); justify-content:flex-end; flex-wrap:wrap; margin-top:var(--space-3);">
+                        <a href="/diseases-list" class="text-muted" style="font-size:0.8rem;">Diseases</a>
+                        <a href="/xray-analysis" class="text-muted" style="font-size:0.8rem;">X-Ray</a>
+                        <a href="/lab-analysis" class="text-muted" style="font-size:0.8rem;">Lab Analysis</a>
+                        <a href="/second-opinion" class="text-muted" style="font-size:0.8rem;">Second Opinion</a>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t pt-6 text-center text-muted" style="font-size:0.78rem;">
+                <i class="fas fa-shield-alt mr-2" aria-hidden="true"></i>
+                <strong>Medical Disclaimer:</strong> For informational purposes only. Not a substitute for professional medical advice.
+                Always consult a qualified healthcare provider. In emergencies call <strong>112 / 911</strong>.
+            </div>
+        </div>
+    </footer>
+
+    <!-- Core JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    <!-- Enhancement JS -->
+    <script>
+    (function () {
+        // ── Navbar scroll shadow ────────────────────────────────────────────
+        const nav = document.getElementById('mainNav');
+        window.addEventListener('scroll', () => {
+            nav.classList.toggle('scrolled', window.scrollY > 10);
+        }, { passive: true });
+
+        // ── Mobile hamburger ────────────────────────────────────────────────
+        const toggle = document.getElementById('navbarToggle');
+        const menu   = document.getElementById('navbarMenu');
+        if (toggle) {
+            // Show hamburger only on mobile
+            const mq = window.matchMedia('(max-width: 900px)');
+            const syncHamburger = () => { toggle.style.display = mq.matches ? 'flex' : 'none'; };
+            mq.addEventListener('change', syncHamburger);
+            syncHamburger();
+
+            toggle.addEventListener('click', () => {
+                const open = menu.classList.toggle('active');
+                toggle.classList.toggle('active', open);
+                toggle.setAttribute('aria-expanded', String(open));
+            });
+        }
+
+        // ── Toast system ────────────────────────────────────────────────────
+        window.showToast = function (message, type = 'info', duration = 4000) {
+            const icons = { success: 'fa-circle-check', error: 'fa-circle-xmark', warning: 'fa-triangle-exclamation', info: 'fa-circle-info' };
+            const colors = { success: 'var(--success)', error: 'var(--danger)', warning: 'var(--warning)', info: 'var(--primary-600)' };
+            const c = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.innerHTML = `<i class="fas ${icons[type]} toast-icon" style="color:${colors[type]}"></i><span>${message}</span>`;
+            c.appendChild(t);
+            setTimeout(() => {
+                t.classList.add('exit');
+                t.addEventListener('animationend', () => t.remove());
+            }, duration);
+        };
+
+        // ── Command palette ─────────────────────────────────────────────────
+        const PAGES = [
+            { label: 'Home',                  icon: 'fa-house',              url: '/' },
+            { label: 'Symptom Analysis',      icon: 'fa-stethoscope',        url: '/' },
+            { label: 'Diseases List',         icon: 'fa-book-medical',       url: '/diseases-list' },
+            { label: 'Lab Analysis',          icon: 'fa-flask',              url: '/lab-analysis' },
+            { label: 'X-Ray Analysis',        icon: 'fa-x-ray',              url: '/xray-analysis' },
+            { label: 'Treatment Plans',       icon: 'fa-clipboard-list',     url: '/my-treatment-plans' },
+            { label: 'Appointments',          icon: 'fa-calendar-check',     url: '/appointments' },
+            { label: 'Medications',           icon: 'fa-pills',              url: '/medication-schedules' },
+            { label: 'Hospital Search',       icon: 'fa-hospital',           url: '/doctors/search' },
+            { label: 'Questionnaire',         icon: 'fa-list-check',         url: '/questionnaire' },
+            { label: 'Drug Interactions',     icon: 'fa-capsules',           url: '/drug-interactions' },
+            { label: 'Second Opinion',        icon: 'fa-comments-medical',   url: '/second-opinion' },
+            { label: 'Disease Dashboard',     icon: 'fa-chart-pie',          url: '/disease-dashboard' },
+            { label: 'Login',                 icon: 'fa-arrow-right-to-bracket', url: '/login' },
+        ];
+
+        const overlay  = document.getElementById('cmd-overlay');
+        const input    = document.getElementById('cmd-input');
+        const results  = document.getElementById('cmd-results');
+        let selected   = 0;
+
+        function renderCmd(query) {
+            const q = query.toLowerCase();
+            const matches = PAGES.filter(p => p.label.toLowerCase().includes(q));
+            selected = 0;
+            results.innerHTML = matches.length
+                ? matches.map((p, i) =>
+                    `<div class="cmd-item${i === 0 ? ' selected' : ''}" data-url="${p.url}">
+                        <i class="fas ${p.icon}"></i><span>${p.label}</span>
+                    </div>`).join('')
+                : '<div class="cmd-item" style="color:var(--text-muted)"><i class="fas fa-search"></i><span>No results</span></div>';
+
+            results.querySelectorAll('.cmd-item[data-url]').forEach(el => {
+                el.addEventListener('click', () => { window.location.href = el.dataset.url; });
+            });
+        }
+
+        function openCmd()  { overlay.classList.add('open');  input.value = ''; renderCmd(''); input.focus(); }
+        function closeCmd() { overlay.classList.remove('open'); }
+
+        document.getElementById('cmdBtn').addEventListener('click', openCmd);
+        overlay.addEventListener('click', e => { if (e.target === overlay) closeCmd(); });
+        input.addEventListener('input',   () => renderCmd(input.value));
+
+        input.addEventListener('keydown', e => {
+            const items = results.querySelectorAll('.cmd-item[data-url]');
+            if (!items.length) return;
+            if (e.key === 'ArrowDown') { e.preventDefault(); items[selected]?.classList.remove('selected'); selected = Math.min(selected + 1, items.length - 1); items[selected]?.classList.add('selected'); items[selected]?.scrollIntoView({ block: 'nearest' }); }
+            if (e.key === 'ArrowUp')   { e.preventDefault(); items[selected]?.classList.remove('selected'); selected = Math.max(selected - 1, 0); items[selected]?.classList.add('selected'); items[selected]?.scrollIntoView({ block: 'nearest' }); }
+            if (e.key === 'Enter')     { items[selected] && (window.location.href = items[selected].dataset.url); }
+            if (e.key === 'Escape')    { closeCmd(); }
+        });
+
+        document.addEventListener('keydown', e => {
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); overlay.classList.contains('open') ? closeCmd() : openCmd(); }
+            if (e.key === 'Escape' && overlay.classList.contains('open')) closeCmd();
+        });
+
+        // ── Scroll-reveal (plays once per element) ─────────────────────────
+        const io = new IntersectionObserver(entries => {
+            entries.forEach(el => { if (el.isIntersecting) { el.target.classList.add('visible'); io.unobserve(el.target); } });
+        }, { threshold: 0, rootMargin: '0px 0px -80px 0px' });
+        document.querySelectorAll('.reveal').forEach(el => io.observe(el));
+
+        // ── Hero headline word-by-word reveal ───────────────────────────────
+        const heroTitle = document.querySelector('.hero-title');
+        if (heroTitle && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+            heroTitle.setAttribute('aria-label', heroTitle.textContent.trim());
+            let wi = 0, lastSpan = null;
+            Array.from(heroTitle.childNodes).forEach(node => {
+                if (node.nodeType !== Node.TEXT_NODE) return;
+                const frag = document.createDocumentFragment();
+                node.textContent.split(/(\s+)/).forEach(part => {
+                    if (!part.trim()) { frag.appendChild(document.createTextNode(part)); return; }
+                    const span = document.createElement('span');
+                    span.className = 'hw';
+                    span.setAttribute('aria-hidden', 'true');
+                    span.style.setProperty('--wi', wi++);
+                    span.textContent = part;
+                    frag.appendChild(span);
+                    lastSpan = span;
+                });
+                heroTitle.replaceChild(frag, node);
+            });
+            if (lastSpan) lastSpan.classList.add('hw-accent');
+        }
+
+    })();
+    </script>
+
+    {% block extra_scripts %}{% endblock %}
+</body>
+</html>

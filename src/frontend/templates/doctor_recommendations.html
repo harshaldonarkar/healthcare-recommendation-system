@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Recommended Specialists{% endblock %}
+{% block meta_description %}Find specialist doctors for {{ disease }} with Health Advisor.{% endblock %}
+
+{% block extra_head %}
+<style>
+.doctor-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(350px,1fr)); gap:1.5rem; margin-bottom:2rem; }
+.doctor-card { background:var(--bg-secondary); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); overflow:hidden; transition:all 0.3s ease; display:flex; flex-direction:column; border:1px solid var(--border-color); }
+.doctor-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+.doctor-card-header { padding:1rem 1.25rem; background-color:var(--bg-tertiary); border-bottom:1px solid var(--border-color); }
+.doctor-card-header h6 { margin:0; font-weight:600; color:var(--text-primary); }
+.doctor-card-body { padding:1.25rem; flex:1; }
+.specialty-badges { display:flex; flex-wrap:wrap; gap:0.5rem; margin-bottom:1rem; }
+.info-row { display:flex; align-items:flex-start; gap:0.75rem; margin-bottom:0.75rem; font-size:0.95rem; }
+.info-row i { color:var(--primary-600); width:1.25rem; flex-shrink:0; }
+.doctor-section-title { font-size:0.875rem; font-weight:600; color:var(--text-secondary); margin-top:0.75rem; margin-bottom:0.5rem; }
+.contact-info p { margin:0.25rem 0; font-size:0.875rem; word-break:break-word; }
+.doctor-card-footer { padding:1rem 1.25rem; background-color:var(--bg-tertiary); border-top:1px solid var(--border-color); display:flex; gap:0.75rem; }
+.doctor-card-footer button { flex:1; padding:0.5rem 0.75rem; font-size:0.875rem; }
+.no-results { text-align:center; padding:2rem 1rem; }
+.no-results i { font-size:2.5rem; color:var(--warning); margin-bottom:1rem; display:block; }
+.grid-actions { text-align:center; margin-top:2rem; }
+.checklist { list-style:none; padding:0; margin:0.75rem 0; }
+.checklist li { padding:0.5rem 0; color:var(--text-secondary); display:flex; align-items:center; gap:0.75rem; }
+.checklist i { color:var(--success); }
+@media (max-width:768px) { .doctor-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <div class="mb-6">
+        <a href="{{ url_for('treatment.treatment_tracker_page', user_id=user_id, plan_id=plan_id) }}" class="btn btn-outline btn-sm">
+            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Back to Treatment Plan
+        </a>
+    </div>
+
+    <div style="padding:var(--space-8); border-radius:var(--radius-xl); margin-bottom:var(--space-8); background:linear-gradient(135deg,var(--primary-700) 0%,var(--primary-600) 100%); color:white;">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-user-md mr-2" aria-hidden="true"></i>Recommended Specialists</h1>
+        <p style="opacity:0.9;">Doctors specializing in <strong>{{ disease }}</strong></p>
+    </div>
+
+    <div id="recommended-doctors" role="region" aria-label="Doctor results">
+        <div class="grid grid-cols-3 gap-6" id="skeleton-doctors-grid" aria-hidden="true">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+    </div>
+
+    <div class="card shadow-md mt-6">
+        <div class="card-header" style="background:var(--primary-700); color:white;">
+            <h5 style="margin:0;"><i class="fas fa-info-circle mr-2" aria-hidden="true"></i>About Doctor Recommendations</h5>
+        </div>
+        <div class="card-body">
+            <p>Our recommendations are based on your diagnosed condition. We look for specialists with experience treating <strong>{{ disease }}</strong> in your area.</p>
+            <h6 class="font-semibold mt-4 mb-2">Recommendations take into account:</h6>
+            <ul class="checklist">
+                <li><i class="fas fa-check-circle" aria-hidden="true"></i>Medical specialty requirements for your condition</li>
+                <li><i class="fas fa-check-circle" aria-hidden="true"></i>Hospital facilities and accreditation</li>
+                <li><i class="fas fa-check-circle" aria-hidden="true"></i>Geographic proximity to your location</li>
+            </ul>
+            <div class="alert alert-info mt-4">
+                <div class="alert-icon"><i class="fas fa-info-circle" aria-hidden="true"></i></div>
+                <div class="alert-content">Always consult your regular healthcare provider before switching doctors.</div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function DoctorRecommendations() {
+    'use strict';
+    var disease = {{ disease | tojson }};
+    var location = new URLSearchParams(window.location.search).get('location') || '';
+    loadDoctors(location);
+
+    function loadDoctors(loc) {
+        fetch('/doctors/recommend/' + encodeURIComponent(disease) + '?location=' + encodeURIComponent(loc))
+            .then(function(r) { return r.json(); })
+            .then(function(data) { renderDoctors(data.recommendations || []); })
+            .catch(function() {
+                document.getElementById('recommended-doctors').innerHTML = '<div class="alert alert-danger"><div class="alert-icon"><i class="fas fa-exclamation-circle"></i></div><div class="alert-content">Error loading doctors. Please try again.</div></div>';
+            });
+    }
+
+    function renderDoctors(doctors) {
+        var container = document.getElementById('recommended-doctors');
+        if (!doctors.length) {
+            container.innerHTML = '<div class="no-results"><i class="fas fa-exclamation-triangle"></i><h4 class="font-semibold">No Doctors Found</h4><p class="text-muted">No specialist doctors found for ' + disease + '.</p><a href="/doctors/search" class="btn btn-primary mt-4">Search All Hospitals</a></div>';
+            return;
+        }
+        var html = '<h3 class="text-2xl font-bold mb-6"><i class="fas fa-user-md mr-2"></i>Specialists for ' + disease + '</h3><div class="doctor-grid">';
+        doctors.forEach(function(d) {
+            var badges = '';
+            if (d.specialty) {
+                d.specialty.split(',').map(function(s) { return s.trim(); }).filter(Boolean).forEach(function(s) {
+                    badges += '<span class="badge badge-secondary">' + s + '</span>';
+                });
+            }
+            if (!badges) badges = '<span class="badge badge-secondary">General Practice</span>';
+            var contacts = Object.entries(d.contact_info || {}).map(function(e) {
+                var icon = e[0].toLowerCase().includes('phone') ? 'phone' : e[0].toLowerCase().includes('email') ? 'envelope' : 'info-circle';
+                return '<div class="info-row"><i class="fas fa-' + icon + '"></i><span>' + e[1] + '</span></div>';
+            }).join('');
+            html += '<div class="doctor-card">'
+                + '<div class="doctor-card-header"><h6>' + (d.hospital_name || 'Medical Center') + '</h6></div>'
+                + '<div class="doctor-card-body">'
+                + '<div class="specialty-badges">' + badges + '</div>'
+                + (d.address ? '<div class="info-row"><i class="fas fa-map-marker-alt"></i><span>' + d.address + '</span></div>' : '')
+                + (d.hospital_type ? '<div class="info-row"><i class="fas fa-hospital"></i><span>' + d.hospital_type + '</span></div>' : '')
+                + (contacts ? '<div><div class="doctor-section-title">Contact Information</div><div class="contact-info">' + contacts + '</div></div>' : '')
+                + '</div>'
+                + '<div class="doctor-card-footer">'
+                + '<button class="btn btn-outline" onclick="alert('Directions feature coming soon.')"><i class="fas fa-directions mr-1"></i>Directions</button>'
+                + '<button class="btn btn-primary" onclick="alert('Scheduling feature coming soon.')"><i class="fas fa-calendar-plus mr-1"></i>Schedule</button>'
+                + '</div></div>';
+        });
+        html += '</div><div class="grid-actions"><a href="/doctors/search" class="btn btn-outline"><i class="fas fa-search mr-1"></i>More Doctors</a></div>';
+        container.innerHTML = html;
+    }
+})();
+</script>
+{% endblock %}

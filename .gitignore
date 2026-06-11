@@ -1,0 +1,90 @@
+.qodo
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.so
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+venv/
+myenv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# Training checkpoints
+results/
+
+# Large model files (>100 MB — too big for GitHub)
+# Use Git LFS or share via HuggingFace Hub instead
+models/**/*.safetensors
+models/**/*.bin
+models/**/checkpoints/
+models/ddxplus_tfidf/*.pkl
+# Keep config/tokenizer/label_map files (small, needed for replication)
+
+# DDXPlus raw dataset (large parquet files)
+data/ddxplus/
+
+# Runtime data (auto-generated)
+data/progress_data.json
+data/medication_reminders.json
+
+# Ablation model checkpoints
+models/ddxplus_ablation_*
+
+# Pytest cache
+.pytest_cache/
+
+# Security log (may contain PII)
+security_events.log
+
+# Rate limit data
+data/rate_limits.json
+
+# Claude Code project files (local dev tooling only)
+CLAUDE.md
+.claude/
+
+# Research paper and journal submission artefacts
+docs/
+
+# One-off exploration scripts (training complete, dataset removed)
+scripts/explore_ddxplus.py
+
+# Training source data (only needed for retraining; model already trained)
+data/dataset.csv
+data/Symptom-severity.csv
+data/symptom_Description.csv
+data/symptom_precaution.csv
+
+# Manual / one-off test scripts
+tests/manual_test_*.py
+
+# Word temp lock files
+docs/~$*
+
+# Scratch / notes files
+pdf_extraction_flow.txt
+
+# src/data runtime files
+src/data/

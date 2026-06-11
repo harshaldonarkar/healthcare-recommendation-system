@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Lab Analysis{% endblock %}
+{% block meta_description %}Upload and analyze your lab results with AI-powered insights and trend tracking.{% endblock %}
+
+{% block extra_head %}
+<style>
+.lab-result { background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:var(--space-4); margin-bottom:var(--space-4); transition:all var(--transition-base); }
+.lab-result:hover { box-shadow:var(--shadow-md); border-color:var(--primary-400); }
+.lab-result.abnormal { border-left:4px solid var(--danger); }
+.lab-result.warning { border-left:4px solid var(--warning); }
+.lab-result.normal { border-left:4px solid var(--success); }
+.status-badge { display:inline-block; padding:var(--space-1) var(--space-3); border-radius:var(--radius-full); font-size:0.75rem; font-weight:600; text-transform:uppercase; }
+.status-normal { background:var(--success-light); color:var(--success-dark); }
+.status-abnormal { background:var(--danger-light); color:var(--danger-dark); }
+.status-warning { background:var(--warning-light); color:var(--warning-dark); }
+.dropzone { border:2px dashed var(--primary-400); border-radius:var(--radius-2xl); padding:var(--space-12); text-align:center; background:linear-gradient(135deg,var(--primary-50) 0%,var(--primary-100) 100%); transition:all var(--transition-base); cursor:pointer; }
+.dropzone:hover, .dropzone.drag-active { border-color:var(--primary-600); background:linear-gradient(135deg,var(--primary-100) 0%,var(--primary-200) 100%); box-shadow:var(--shadow-md); }
+.section-card { background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-2xl); padding:var(--space-6); margin-bottom:var(--space-8); }
+.grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:var(--space-6); }
+@media (max-width:1024px) { .grid-2 { grid-template-columns:1fr; } }
+.lab-tab-buttons { display:flex; gap:var(--space-2); border-bottom:1px solid var(--border-color); margin-bottom:var(--space-6); flex-wrap:wrap; }
+.lab-tab-btn { padding:var(--space-3) var(--space-5); background:none; border:none; color:var(--text-secondary); cursor:pointer; font-weight:500; position:relative; transition:color var(--transition-base); font-family:var(--font-family); font-size:0.95rem; }
+.lab-tab-btn.active { color:var(--primary-600); }
+.lab-tab-btn.active::after { content:''; position:absolute; bottom:-1px; left:0; right:0; height:2px; background:var(--primary-600); }
+.loading-skeleton { background:linear-gradient(90deg,var(--gray-200) 0%,var(--gray-100) 50%,var(--gray-200) 100%); background-size:200% 100%; animation:loading 1.5s infinite; border-radius:var(--radius-lg); height:100px; margin-bottom:var(--space-4); }
+@keyframes loading { 0%{background-position:200% 0;} 100%{background-position:-200% 0;} }
+.range-bar { margin:var(--space-2) 0; height:10px; background:var(--gray-200); border-radius:var(--radius-full); position:relative; overflow:hidden; }
+.range-bar-fill { height:100%; border-radius:var(--radius-full); }
+.test-entry-item { display:grid; grid-template-columns:2fr 1fr 1fr auto; gap:var(--space-3); margin-bottom:var(--space-3); align-items:center; }
+@media (max-width:768px) { .test-entry-item { grid-template-columns:1fr; } }
+.test-entry-item select, .test-entry-item input { padding:var(--space-2); border:1px solid var(--border-color); border-radius:var(--radius-md); font-size:1rem; background:var(--bg-secondary); color:var(--text-primary); }
+.reference-table { width:100%; border-collapse:collapse; margin-top:var(--space-4); }
+.reference-table th, .reference-table td { padding:var(--space-3); text-align:left; border-bottom:1px solid var(--border-color); }
+.reference-table th { background:var(--bg-tertiary); font-weight:600; color:var(--text-primary); }
+.reference-table tr:hover { background:var(--bg-tertiary); }
+input[type="file"] { display:none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-vial mr-2 text-primary" aria-hidden="true"></i>Lab Analysis</h1>
+        <p class="text-secondary">Upload, analyze, and track your lab results with AI-powered insights</p>
+    </div>
+
+    <!-- Tab Navigation -->
+    <div class="lab-tab-buttons" role="tablist">
+        <button class="lab-tab-btn active" data-tab="upload" role="tab" aria-selected="true"><i class="fas fa-upload mr-1" aria-hidden="true"></i>Upload Report</button>
+        <button class="lab-tab-btn" data-tab="paste" role="tab" aria-selected="false"><i class="fas fa-paste mr-1" aria-hidden="true"></i>Paste Text</button>
+        <button class="lab-tab-btn" data-tab="manual" role="tab" aria-selected="false"><i class="fas fa-keyboard mr-1" aria-hidden="true"></i>Manual Entry</button>
+        <button class="lab-tab-btn" data-tab="history" role="tab" aria-selected="false"><i class="fas fa-history mr-1" aria-hidden="true"></i>History</button>
+        <button class="lab-tab-btn" data-tab="trends" role="tab" aria-selected="false"><i class="fas fa-chart-line mr-1" aria-hidden="true"></i>Trends</button>
+    </div>
+
+    <!-- Tab Content -->
+    <div>
+        <!-- Upload Tab -->
+        <div id="upload-tab" class="tab-pane" role="tabpanel">
+            <div class="section-card">
+                <h3 class="text-xl font-semibold mb-6"><i class="fas fa-cloud-upload-alt mr-2" aria-hidden="true"></i>Upload Lab Report</h3>
+                <div class="dropzone" id="uploadArea">
+                    <i class="fas fa-file-medical" style="font-size:3.5rem; color:var(--primary-600); display:block; margin-bottom:var(--space-4);" aria-hidden="true"></i>
+                    <p class="text-xl font-semibold mb-2">Upload Your Lab Report</p>
+                    <p class="text-secondary mb-6">Drag and drop your file here or click to browse</p>
+                    <input type="file" id="labReportFile" accept=".pdf,.jpg,.jpeg,.png" aria-label="Choose lab report file">
+                    <button class="btn btn-primary mb-3" onclick="document.getElementById('labReportFile').click()">
+                        <i class="fas fa-folder-open mr-2" aria-hidden="true"></i>Choose File
+                    </button>
+                    <p class="text-sm text-muted"><i class="fas fa-info-circle mr-1" aria-hidden="true"></i>Supports PDF, JPG, PNG (Max 10 MB)</p>
+                </div>
+                <div id="uploadProgress" class="hidden" style="margin-top:var(--space-6);">
+                    <div style="background:var(--gray-200); border-radius:var(--radius-full); height:8px; overflow:hidden;">
+                        <div id="progressBar" style="background:linear-gradient(90deg,var(--primary-600),var(--primary-500)); height:100%; width:0%; transition:width 0.3s ease;" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100"></div>
+                    </div>
+                    <p class="text-secondary text-center mt-2">Processing...</p>
+                </div>
+                <div id="uploadResults" class="hidden" style="margin-top:var(--space-6);"></div>
+            </div>
+        </div>
+
+        <!-- Paste Text Tab -->
+        <div id="paste-tab" class="tab-pane hidden" role="tabpanel">
+            <div class="section-card">
+                <h3 class="text-xl font-semibold mb-4"><i class="fas fa-paste mr-2" aria-hidden="true"></i>Paste Lab Report Text</h3>
+                <p class="text-secondary mb-4">Copy lab results from your report and paste below. Example: "Glucose: 105 mg/dL, HbA1c: 6.1%"</p>
+                <textarea id="pasteTextArea" class="form-textarea" rows="8"
+                    placeholder="Glucose : 105 mg/dL&#10;HbA1c : 6.1 %&#10;Total Cholesterol : 215 mg/dL&#10;LDL : 140 mg/dL&#10;HDL : 45 mg/dL"></textarea>
+                <div class="flex gap-3 mt-4">
+                    <button class="btn btn-primary" id="parsePasteBtn"><i class="fas fa-search mr-2" aria-hidden="true"></i>Analyse</button>
+                    <button class="btn btn-outline" onclick="document.getElementById('pasteTextArea').value=''"><i class="fas fa-trash mr-2" aria-hidden="true"></i>Clear</button>
+                </div>
+                <div id="pasteResults" class="hidden" style="margin-top:var(--space-6);"></div>
+            </div>
+        </div>
+
+        <!-- Manual Entry Tab -->
+        <div id="manual-tab" class="tab-pane hidden" role="tabpanel">
+            <div class="section-card">
+                <h3 class="text-xl font-semibold mb-6"><i class="fas fa-keyboard mr-2" aria-hidden="true"></i>Manual Test Entry</h3>
+                <div id="manualEntryForm"></div>
+                <div class="flex gap-3 mt-6">
+                    <button class="btn btn-outline" onclick="addTestEntry()"><i class="fas fa-plus mr-2" aria-hidden="true"></i>Add Test</button>
+                    <button class="btn btn-primary" onclick="submitManualEntry()"><i class="fas fa-check mr-2" aria-hidden="true"></i>Submit</button>
+                </div>
+                <div id="manualEntryResults" class="hidden" style="margin-top:var(--space-6);"></div>
+            </div>
+        </div>
+
+        <!-- History Tab -->
+        <div id="history-tab" class="tab-pane hidden" role="tabpanel">
+            <div class="section-card">
+                <h3 class="text-xl font-semibold mb-4"><i class="fas fa-history mr-2" aria-hidden="true"></i>Lab Test History</h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--space-4); margin-bottom:var(--space-6);">
+                    <div><label class="form-label">Start Date</label><input type="date" id="startDate" class="form-input"></div>
+                    <div><label class="form-label">End Date</label><input type="date" id="endDate" class="form-input"></div>
+                    <div><label class="form-label">Filter Test</label><select id="filterTest" class="form-select"><option value="">All Tests</option></select></div>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table class="reference-table">
+                        <thead><tr><th>Date</th><th>Test Name</th><th>Value</th><th>Unit</th><th>Status</th><th>Actions</th></tr></thead>
+                        <tbody id="labHistoryTable"><tr><td colspan="6" class="text-center text-secondary">No history yet</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- Trends Tab -->
+        <div id="trends-tab" class="tab-pane hidden" role="tabpanel">
+            <div class="section-card">
+                <h3 class="text-xl font-semibold mb-4"><i class="fas fa-chart-line mr-2" aria-hidden="true"></i>Trend Analysis</h3>
+                <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:var(--space-4); margin-bottom:var(--space-6);">
+                    <div><label class="form-label">Select Test</label><select id="trendTest" class="form-select"><option value="">Select test for analysis...</option></select></div>
+                    <div><label class="form-label">Time Period</label><select id="trendPeriod" class="form-select"><option value="1m">Last Month</option><option value="3m">Last 3 Months</option><option value="6m">Last 6 Months</option><option value="1y">Last Year</option><option value="all">All Time</option></select></div>
+                </div>
+                <div style="height:400px; background:var(--bg-tertiary); border-radius:var(--radius-lg); display:flex; align-items:center; justify-content:center; margin-bottom:var(--space-6);">
+                    <canvas id="trendChart" style="max-height:100%;"></canvas>
+                </div>
+                <div id="trendStats" class="grid-2 hidden">
+                    <div class="text-center"><p class="text-secondary mb-2">Average Value</p><p style="font-size:2rem; font-weight:700; color:var(--primary-600);" id="avgValue">--</p></div>
+                    <div class="text-center"><p class="text-secondary mb-2">Trend Direction</p><p style="font-size:2rem; font-weight:700;" id="trendDirection">--</p></div>
+                    <div class="text-center"><p class="text-secondary mb-2">Last Reading</p><p style="font-size:2rem; font-weight:700; color:var(--primary-600);" id="lastReading">--</p></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Info Cards -->
+    <div class="grid-2 mt-8">
+        <div class="section-card">
+            <h3 class="text-xl font-semibold mb-4"><i class="fas fa-lightbulb mr-2" aria-hidden="true"></i>How to Use</h3>
+            <ol style="padding-left:var(--space-6); color:var(--text-secondary);">
+                <li style="margin-bottom:var(--space-3);">Upload a PDF or image of your lab report</li>
+                <li style="margin-bottom:var(--space-3);">Or paste test results directly as text</li>
+                <li style="margin-bottom:var(--space-3);">Manually enter individual test results</li>
+                <li style="margin-bottom:var(--space-3);">View AI-powered analysis and recommendations</li>
+                <li>Track trends over time in the Trends tab</li>
+            </ol>
+        </div>
+        <div class="section-card">
+            <h3 class="text-xl font-semibold mb-4"><i class="fas fa-list-check mr-2" aria-hidden="true"></i>Common Tests</h3>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:var(--space-3); font-size:0.875rem;">
+                <div>
+                    <p class="text-secondary font-semibold mb-1">Blood Work</p>
+                    <ul style="color:var(--text-muted); list-style:none; padding:0;">
+                        <li><i class="fas fa-check mr-1" style="color:var(--success);" aria-hidden="true"></i>Glucose</li>
+                        <li><i class="fas fa-check mr-1" style="color:var(--success);" aria-hidden="true"></i>Hemoglobin</li>
+                        <li><i class="fas fa-check mr-1" style="color:var(--success);" aria-hidden="true"></i>Cholesterol</li>
+                    </ul>
+                </div>
+                <div>
+                    <p class="text-secondary font-semibold mb-1">Metabolic</p>
+                    <ul style="color:var(--text-muted); list-style:none; padding:0;">
+                        <li><i class="fas fa-check mr-1" style="color:var(--success);" aria-hidden="true"></i>TSH</li>
+                        <li><i class="fas fa-check mr-1" style="color:var(--success);" aria-hidden="true"></i>Creatinine</li>
+                        <li><i class="fas fa-check mr-1" style="color:var(--success);" aria-hidden="true"></i>Vitamin D</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/lab-analysis.js') }}"></script>
+<script>
+(function LabTabs() {
+    var tabBtns = document.querySelectorAll('.lab-tab-btn');
+    tabBtns.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var name = this.getAttribute('data-tab');
+            document.querySelectorAll('.tab-pane').forEach(function(p) { p.classList.add('hidden'); });
+            document.getElementById(name + '-tab').classList.remove('hidden');
+            tabBtns.forEach(function(b) { b.classList.remove('active'); b.setAttribute('aria-selected', 'false'); });
+            this.classList.add('active');
+            this.setAttribute('aria-selected', 'true');
+        });
+    });
+
+    var uploadArea = document.getElementById('uploadArea');
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', function(e) { e.preventDefault(); uploadArea.classList.add('drag-active'); });
+        uploadArea.addEventListener('dragleave', function() { uploadArea.classList.remove('drag-active'); });
+        uploadArea.addEventListener('drop', function(e) {
+            e.preventDefault(); uploadArea.classList.remove('drag-active');
+            var file = e.dataTransfer.files[0];
+            if (file) { document.getElementById('labReportFile').files = e.dataTransfer.files; handleFileUpload(file); }
+        });
+    }
+})();
+</script>
+{% endblock %}

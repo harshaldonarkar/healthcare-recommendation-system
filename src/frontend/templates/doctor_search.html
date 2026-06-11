@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Find Healthcare Near You{% endblock %}
+{% block meta_description %}Discover quality hospitals and clinics near you with Health Advisor.{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <!-- Hero Banner -->
+    <div class="bg-gradient-primary text-white" style="padding:var(--space-8); border-radius:var(--radius-xl); margin-bottom:var(--space-8);">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-map-marker-alt mr-2" aria-hidden="true"></i>Find Healthcare Near You</h1>
+        <p class="text-lg" style="opacity:0.9;">Discover quality hospitals and clinics in your area</p>
+    </div>
+
+    <!-- Search Form -->
+    <div class="card shadow-lg mb-8">
+        <div class="card-body">
+            <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-4);">
+                <div class="form-group">
+                    <label class="form-label" for="city">City or Location</label>
+                    <input type="text" class="form-input" id="city" list="cityList" placeholder="Enter city name" aria-label="City name">
+                    <datalist id="cityList"></datalist>
+                </div>
+                <div class="form-group">
+                    <label class="form-label" for="type">Hospital Type</label>
+                    <select class="form-select" id="type" aria-label="Hospital type">
+                        <option value="">Any Type</option>
+                        <option value="Public">Public</option>
+                        <option value="Private">Private</option>
+                        <option value="Charitable">Charitable</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex; flex-direction:column; justify-content:flex-end;">
+                    <button class="btn btn-primary w-full" id="search-btn">
+                        <i class="fas fa-search mr-2" aria-hidden="true"></i>Search
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Indicator -->
+    <div id="loading" class="hidden text-center" style="padding:var(--space-12);">
+        <i class="fas fa-spinner" style="font-size:2rem; color:var(--primary-600); display:block; margin-bottom:var(--space-4); animation:spin 0.8s linear infinite;" aria-hidden="true"></i>
+        <p class="text-muted">Searching for hospitals in your area...</p>
+    </div>
+
+    <!-- Results Area -->
+    <div id="search-results" class="mt-6">
+        <div class="text-center" style="padding:var(--space-12);">
+            <i class="fas fa-hospital-alt" style="font-size:3rem; color:var(--primary-300); display:block; margin-bottom:var(--space-4);" aria-hidden="true"></i>
+            <h3 class="text-xl font-semibold mb-2">Find Healthcare Facilities</h3>
+            <p class="text-muted">Enter a city name and click Search to discover nearby hospitals</p>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function DoctorSearch() {
+    'use strict';
+
+    // Load cities
+    fetch('/api/doctors/cities')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var cityList = document.getElementById('cityList');
+            (data.cities || []).forEach(function(city) {
+                var opt = document.createElement('option');
+                opt.value = city;
+                cityList.appendChild(opt);
+            });
+        })
+        .catch(function() {});
+
+    document.getElementById('search-btn').addEventListener('click', performSearch);
+    document.getElementById('city').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') performSearch();
+    });
+
+    function performSearch() {
+        var city = document.getElementById('city').value.trim();
+        var type = document.getElementById('type').value;
+
+        if (!city) {
+            document.getElementById('city').focus();
+            return;
+        }
+
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('search-results').style.display = 'none';
+
+        var params = new URLSearchParams();
+        params.append('city', city);
+        if (type) params.append('type', type);
+
+        fetch('/api/doctors/search?' + params.toString())
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('search-results').style.display = '';
+                renderResults(data.results, city);
+            })
+            .catch(function() {
+                document.getElementById('loading').classList.add('hidden');
+                document.getElementById('search-results').style.display = '';
+                document.getElementById('search-results').innerHTML =
+                    '<div class="alert alert-danger"><div class="alert-icon"><i class="fas fa-exclamation-circle"></i></div><div class="alert-content">An error occurred while searching. Please try again.</div></div>';
+            });
+    }
+
+    function renderResults(hospitals, city) {
+        var container = document.getElementById('search-results');
+        if (!hospitals || hospitals.length === 0) {
+            container.innerHTML = '<div class="alert alert-info text-center" style="padding:var(--space-8);"><i class="fas fa-info-circle" style="font-size:2rem;display:block;margin-bottom:var(--space-3);"></i><h4 class="font-semibold">No Hospitals Found</h4><p class="text-muted">We couldn\'t find any hospitals in ' + city + '. Try a different city.</p></div>';
+            return;
+        }
+
+        var html = '<h2 class="text-2xl font-bold mb-6">Found ' + hospitals.length + ' Hospital' + (hospitals.length > 1 ? 's' : '') + ' in ' + city + '</h2>';
+        html += '<div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:var(--space-6);">';
+
+        hospitals.forEach(function(h) {
+            var stars = '';
+            for (var i = 0; i < 5; i++) stars += '<i class="fas fa-star" style="color:var(--warning);"></i>';
+
+            var facilities = '';
+            if (h.facilities && h.facilities.length) {
+                var fList = h.facilities.filter(function(f) { return f.trim(); });
+                facilities = fList.slice(0, 3).map(function(f) {
+                    return '<span class="tag tag-primary" style="font-size:0.75rem;"><i class="fas fa-check-circle mr-1"></i>' + f.trim() + '</span>';
+                }).join('');
+                if (fList.length > 3) facilities += '<span class="tag tag-primary" style="font-size:0.75rem;">+' + (fList.length - 3) + ' more</span>';
+            }
+
+            var emergency = h.emergency_services ? '<span class="badge badge-danger"><i class="fas fa-ambulance mr-1"></i>Emergency Services</span>' : '';
+
+            html += '<div class="card">';
+            html += '<div class="card-header bg-gradient-primary text-white flex justify-between items-start">';
+            html += '<div><h5 class="font-semibold">' + h.name + '</h5><p class="text-sm" style="opacity:0.9;">' + h.type + ' Hospital</p></div>';
+            html += '<span class="badge badge-info"><i class="fas fa-bed mr-1"></i>' + h.bed_count + ' beds</span>';
+            html += '</div>';
+            html += '<div class="card-body">';
+            html += '<div class="flex gap-1 mb-3">' + stars + '<span class="text-sm text-muted ml-1">' + Math.min(Math.round(h.rating), 5) + '/5</span></div>';
+            html += '<p class="mb-3 text-sm"><i class="fas fa-map-marker-alt mr-2 text-primary"></i>' + h.address + '</p>';
+            if (h.contact_info) {
+                var contacts = Object.values(h.contact_info);
+                if (contacts.length) html += '<p class="mb-3 text-sm"><i class="fas fa-phone mr-2 text-primary"></i>' + contacts[0] + '</p>';
+            }
+            html += '<div class="flex gap-2 flex-wrap mb-3">' + emergency + '</div>';
+            html += '<div class="flex gap-2 flex-wrap">' + facilities + '</div>';
+            html += '</div>';
+            html += '<div class="card-footer flex gap-2">';
+            html += '<button class="btn btn-outline btn-sm" style="flex:1;" onclick="showDirections(\'' + h.hospital_id + '\')"><i class="fas fa-directions mr-1"></i>Directions</button>';
+            html += '<button class="btn btn-primary btn-sm" style="flex:1;" onclick="viewDetails(\'' + h.hospital_id + '\')"><i class="fas fa-info-circle mr-1"></i>Details</button>';
+            html += '</div></div>';
+        });
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    window.showDirections = function() {
+        alert('This would open directions to the hospital in a map app.');
+    };
+    window.viewDetails = function() {
+        alert('This would show detailed information about the hospital.');
+    };
+})();
+</script>
+{% endblock %}

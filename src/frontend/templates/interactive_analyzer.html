@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Interactive Symptom Analyzer{% endblock %}
+{% block meta_description %}Have a conversation with our AI to understand your symptoms.{% endblock %}
+
+{% block extra_head %}
+<style>
+.chat-layout { display:grid; grid-template-columns:2fr 1fr; gap:var(--space-6); margin-bottom:var(--space-8); }
+.chat-container { height:500px; overflow-y:auto; background:var(--bg-tertiary); padding:var(--space-6); border-radius:var(--radius-lg) var(--radius-lg) 0 0; }
+.chat-input-area { padding:var(--space-4); background:var(--bg-secondary); border-top:1px solid var(--border-color); border-radius:0 0 var(--radius-lg) var(--radius-lg); display:flex; gap:var(--space-3); }
+.chat-input-area textarea { flex:1; min-height:50px; resize:none; }
+@media (max-width:768px) { .chat-layout { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <div class="mb-6">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-comments mr-2 text-primary" aria-hidden="true"></i>Interactive Symptom Analyzer</h1>
+        <p class="text-lg text-muted">Have a conversation with our AI to understand your symptoms</p>
+    </div>
+
+    <div class="chat-layout">
+        <!-- Chat Column -->
+        <div>
+            <div class="card shadow-lg">
+                <div class="card-body" style="padding:0;">
+                    <div id="conversation-history" class="chat-container" role="log" aria-label="Conversation" aria-live="polite">
+                        <div class="chat-message system">
+                            <div class="chat-avatar" aria-hidden="true"><i class="fas fa-heartbeat"></i></div>
+                            <div class="chat-bubble">
+                                <p>Welcome to Health Advisor! I'm here to help you understand your symptoms. Please tell me what you're experiencing, and I'll ask follow-up questions.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-input-area">
+                        <form id="symptom-form" class="flex gap-3" style="display:flex; gap:var(--space-3); width:100%;">
+                            <textarea id="symptom-input" class="form-textarea" style="flex:1; min-height:50px; resize:none;"
+                                      placeholder="Describe your symptoms..." required aria-label="Describe your symptoms"></textarea>
+                            <button type="submit" class="btn btn-primary" style="align-self:flex-end;" aria-label="Send">
+                                <i class="fas fa-paper-plane" aria-hidden="true"></i>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+            <div class="card shadow-md mb-6">
+                <div class="card-header" style="background:var(--primary-600); color:white;">
+                    <h5 style="margin:0;"><i class="fas fa-lightbulb mr-2" aria-hidden="true"></i>How to Use</h5>
+                </div>
+                <div class="card-body">
+                    <ol style="padding-left:var(--space-5); font-size:0.9rem; line-height:1.7; margin:0;">
+                        <li class="mb-3"><strong>Describe:</strong> Tell me about your symptoms in detail.</li>
+                        <li class="mb-3"><strong>Answer:</strong> Respond to follow-up questions.</li>
+                        <li class="mb-3"><strong>Assess:</strong> Get a preliminary assessment.</li>
+                        <li><strong>Consult:</strong> Always see a healthcare professional.</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="card shadow-md mb-6">
+                <div class="card-header" style="background:var(--primary-700); color:white;">
+                    <h5 style="margin:0;"><i class="fas fa-star mr-2" aria-hidden="true"></i>Tips</h5>
+                </div>
+                <div class="card-body">
+                    <ul style="padding-left:var(--space-5); font-size:0.9rem; line-height:1.7; margin:0;">
+                        <li class="mb-2">Be as specific as possible</li>
+                        <li class="mb-2">Include symptom duration</li>
+                        <li class="mb-2">Mention severity levels</li>
+                        <li>Include relevant medical history</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="alert alert-warning">
+                <div class="alert-icon"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i></div>
+                <div class="alert-content"><strong>Disclaimer:</strong> This tool is for informational purposes only. Always consult a qualified healthcare provider.</div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+$(document).ready(function() {
+    var conversationHistory = $('#conversation-history');
+    var detectedSymptoms = [], potentialConditions = [], selectedSymptoms = [], conversationStep = 0;
+
+    $('#symptom-form').on('submit', function(e) {
+        e.preventDefault();
+        var input = $('#symptom-input');
+        var userMessage = input.val().trim();
+        if (!userMessage) return;
+        appendMessage('user', userMessage);
+        input.val('');
+        appendLoadingIndicator();
+        setTimeout(function() { $('.chat-typing').remove(); processConversation(userMessage); }, 1000);
+    });
+
+    function processConversation(userMessage) {
+        conversationStep++;
+        if (conversationStep === 1) {
+            detectedSymptoms = analyzeInitialSymptoms(userMessage);
+            potentialConditions = generatePotentialConditions(detectedSymptoms);
+            appendMessageWithOptions('system', 'I\'ve detected these symptoms: ' + detectedSymptoms.join(', ') + '. Is that correct?', ['Yes, that\'s correct', 'No, that\'s not right']);
+        } else if (conversationStep === 2) {
+            if (userMessage.toLowerCase().includes('yes')) {
+                appendMessageWithCheckboxes('system', 'Are you experiencing any of these additional symptoms?', generateFollowupSymptoms(detectedSymptoms, potentialConditions));
+            } else {
+                appendMessage('system', 'Please specify what symptoms you are experiencing:');
+                conversationStep = 0;
+            }
+        } else if (conversationStep === 3) {
+            if (userMessage.includes(':')) { var t = userMessage.split(':')[1].trim(); if (t) selectedSymptoms = t.split(',').map(function(s) { return s.trim(); }); }
+            detectedSymptoms = detectedSymptoms.concat(selectedSymptoms);
+            var assessment = {
+                possibleConditions: potentialConditions.map(function(c) { return {name: c, probability: Math.floor(Math.random() * 30) + 60}; }).sort(function(a,b) { return b.probability - a.probability; }),
+                recommendedAction: 'Please consult with a healthcare professional for proper diagnosis.'
+            };
+            appendMessageWithAssessment('system', 'Based on your symptoms, here\'s a preliminary assessment:', assessment);
+        } else {
+            appendMessage('system', 'Thank you for that information. Is there anything else about your symptoms?');
+        }
+    }
+
+    function appendMessage(type, message) {
+        var icon = type === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-heartbeat"></i>';
+        conversationHistory.append('<div class="chat-message ' + type + '"><div class="chat-avatar">' + icon + '</div><div class="chat-bubble">' + message + '</div></div>');
+        scrollToBottom();
+    }
+
+    function appendMessageWithOptions(type, message, options) {
+        var opts = options.map(function(o) { return '<button class="option-btn btn btn-outline btn-sm mr-2 mb-2">' + o + '</button>'; }).join('');
+        conversationHistory.append('<div class="chat-message system"><div class="chat-avatar"><i class="fas fa-heartbeat"></i></div><div class="chat-bubble"><p>' + message + '</p><div style="margin-top:var(--space-4);">' + opts + '</div></div></div>');
+        scrollToBottom();
+        $('.option-btn').on('click', function() {
+            var sel = $(this).text();
+            $('.option-btn').prop('disabled', true);
+            appendMessage('user', sel);
+            appendLoadingIndicator();
+            setTimeout(function() { $('.chat-typing').remove(); processConversation(sel); }, 1000);
+        });
+    }
+
+    function appendMessageWithCheckboxes(type, message, options) {
+        var cbs = options.map(function(o, i) {
+            return '<div class="form-checkbox"><input type="checkbox" class="symptom-checkbox" id="s-' + i + '" value="' + o + '"><label class="text-sm" for="s-' + i + '">' + o + '</label></div>';
+        }).join('');
+        conversationHistory.append('<div class="chat-message system"><div class="chat-avatar"><i class="fas fa-heartbeat"></i></div><div class="chat-bubble"><p>' + message + '</p><div style="margin-top:var(--space-4);">' + cbs + '</div><button class="submit-symptoms-btn btn btn-primary btn-sm" style="margin-top:var(--space-4);">Submit</button></div></div>');
+        scrollToBottom();
+        $('.submit-symptoms-btn').on('click', function() {
+            var sel = [];
+            $('.symptom-checkbox:checked').each(function() { sel.push($(this).val()); });
+            var resp = sel.length > 0 ? 'I\'m also experiencing: ' + sel.join(', ') : 'I don\'t have any of these additional symptoms';
+            appendMessage('user', resp);
+            appendLoadingIndicator();
+            setTimeout(function() { $('.chat-typing').remove(); processConversation(resp); }, 1000);
+        });
+    }
+
+    function appendMessageWithAssessment(type, message, assessment) {
+        var conds = assessment.possibleConditions.map(function(c) {
+            return '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3);padding:var(--space-3);background:var(--bg-tertiary);border-radius:var(--radius-md);"><span class="font-medium">' + c.name + '</span><span class="badge badge-primary">' + c.probability + '%</span></div>';
+        }).join('');
+        var html = '<div class="chat-message system"><div class="chat-avatar"><i class="fas fa-heartbeat"></i></div><div class="chat-bubble"><p class="mb-3">' + message + '</p><div class="card mb-3"><div class="card-header" style="background:var(--primary-600);color:white;font-size:0.875rem;font-weight:600;">Possible Conditions</div><div class="card-body">' + conds + '</div></div><div class="alert alert-warning mb-3"><div class="alert-icon"><i class="fas fa-exclamation-triangle"></i></div><div class="alert-content">' + assessment.recommendedAction + '</div></div><button class="restart-btn btn btn-outline btn-sm mr-2"><i class="fas fa-redo mr-1"></i>New Analysis</button><a href="/disease-dashboard/' + assessment.possibleConditions[0].name + '" class="btn btn-primary btn-sm"><i class="fas fa-chart-bar mr-1"></i>Dashboard</a></div></div>';
+        conversationHistory.append(html);
+        scrollToBottom();
+        $('.restart-btn').on('click', function() {
+            conversationHistory.html('<div class="chat-message system"><div class="chat-avatar"><i class="fas fa-heartbeat"></i></div><div class="chat-bubble"><p>Welcome back! Tell me what symptoms you\'re experiencing.</p></div></div>');
+            detectedSymptoms = []; potentialConditions = []; selectedSymptoms = []; conversationStep = 0;
+            scrollToBottom();
+        });
+    }
+
+    function appendLoadingIndicator() {
+        conversationHistory.append('<div class="chat-message system chat-typing"><div class="chat-avatar"><i class="fas fa-heartbeat"></i></div><div class="chat-bubble"><span></span><span></span><span></span></div></div>');
+        scrollToBottom();
+    }
+
+    function scrollToBottom() { conversationHistory.scrollTop(conversationHistory[0].scrollHeight); }
+
+    function analyzeInitialSymptoms(text) {
+        var common = ['headache','fever','cough','fatigue','nausea','sore throat','dizziness','chest pain','shortness of breath','muscle pain'];
+        var found = []; var lower = text.toLowerCase();
+        common.forEach(function(s) { if (lower.includes(s)) found.push(s); });
+        if (!found.length) {
+            if (lower.includes('head')) found.push('headache');
+            if (lower.includes('sick')) found.push('fatigue');
+            if (lower.includes('pain')) found.push('muscle pain');
+            if (lower.includes('throat')) found.push('sore throat');
+        }
+        return found.length ? found : ['general discomfort'];
+    }
+
+    function generatePotentialConditions(symptoms) {
+        var map = {'headache':['Migraine','Tension Headache','Sinusitis'],'fever':['Common Cold','Flu','COVID-19'],'cough':['Bronchitis','Common Cold','Asthma'],'fatigue':['Anemia','Depression','Chronic Fatigue Syndrome'],'nausea':['Food Poisoning','Gastroenteritis','Migraine'],'sore throat':['Strep Throat','Common Cold','Tonsillitis'],'dizziness':['Vertigo','Low Blood Pressure','Anemia'],'chest pain':['Angina','Costochondritis','Heartburn'],'shortness of breath':['Asthma','Anxiety','Pneumonia'],'muscle pain':['Fibromyalgia','Strain','Flu']};
+        var found = new Set();
+        symptoms.forEach(function(s) { (map[s] || []).forEach(function(c) { found.add(c); }); });
+        return Array.from(found).slice(0, 3);
+    }
+
+    function generateFollowupSymptoms(symptoms, conditions) {
+        var map = {'Migraine':['light sensitivity','nausea','visual aura'],'Flu':['body aches','chills','high fever'],'Common Cold':['runny nose','sneezing','mild fever'],'COVID-19':['loss of taste','loss of smell','dry cough'],'Bronchitis':['persistent cough','chest discomfort','wheezing'],'Asthma':['wheezing','chest tightness','coughing fits'],'Sinusitis':['facial pressure','nasal congestion','post-nasal drip'],'Strep Throat':['difficulty swallowing','swollen tonsils','white patches'],'Pneumonia':['high fever','sweating','chest pain when breathing']};
+        var found = new Set();
+        conditions.forEach(function(c) { (map[c] || []).forEach(function(s) { if (!symptoms.includes(s)) found.add(s); }); });
+        return Array.from(found).slice(0, 6);
+    }
+});
+</script>
+{% endblock %}

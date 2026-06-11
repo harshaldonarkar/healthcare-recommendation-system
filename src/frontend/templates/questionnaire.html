@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Symptom Questionnaire{% endblock %}
+{% block meta_description %}Answer questions to help identify potential conditions based on your symptoms.{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <div class="mb-8 text-center">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-clipboard-check mr-2 text-primary" aria-hidden="true"></i>Symptom Questionnaire</h1>
+        <p class="text-lg text-muted">Answer a few questions to help us understand your symptoms better</p>
+    </div>
+
+    <div style="max-width:700px; margin:0 auto;">
+        <!-- Progress Indicator -->
+        <div class="questionnaire-progress mb-8">
+            <div class="question-step active">
+                <div class="question-number">1</div>
+                <div class="question-label">Start</div>
+            </div>
+            <div class="question-step">
+                <div class="question-number">2</div>
+                <div class="question-label">Symptoms</div>
+            </div>
+            <div class="question-step">
+                <div class="question-number">3</div>
+                <div class="question-label">Details</div>
+            </div>
+            <div class="question-step">
+                <div class="question-number">4</div>
+                <div class="question-label">Review</div>
+            </div>
+            <div class="question-step">
+                <div class="question-number">5</div>
+                <div class="question-label">Results</div>
+            </div>
+        </div>
+
+        <div class="card shadow-lg mb-6">
+            <div class="card-body text-center" style="padding:var(--space-12) var(--space-6);">
+                <i class="fas fa-stethoscope" style="font-size:3.5rem; color:var(--primary-600); display:block; margin-bottom:var(--space-6);" aria-hidden="true"></i>
+                <h2 class="text-2xl font-bold mb-3">Start Your Assessment</h2>
+                <p class="text-muted mb-6">This quick questionnaire will help identify potential conditions based on your symptoms. Please answer honestly and in detail for the best results.</p>
+                <button id="start-questionnaire" class="btn btn-primary btn-lg">
+                    <i class="fas fa-play mr-2" aria-hidden="true"></i>Begin Questionnaire
+                </button>
+            </div>
+        </div>
+
+        <div id="questionnaire-container"></div>
+
+        <div class="alert alert-warning mt-6">
+            <div class="alert-icon"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i></div>
+            <div class="alert-content">
+                <strong>Important Disclaimer:</strong> This questionnaire is for informational purposes only and is not a substitute for professional medical advice, diagnosis, or treatment.
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="/static/js/questionnaire.js"></script>
+{% endblock %}

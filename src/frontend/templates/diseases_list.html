@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Disease Encyclopedia{% endblock %}
+{% block meta_description %}Explore comprehensive information about 102+ diseases, symptoms, and treatments.{% endblock %}
+
+{% block extra_head %}
+<style>
+.search-section { display:flex; gap:var(--space-4); margin-bottom:var(--space-8); flex-wrap:wrap; }
+.search-container { flex:1; min-width:250px; }
+.search-input { width:100%; padding:var(--space-3) var(--space-4); border:1px solid var(--border-color); border-radius:var(--radius-lg); font-size:1rem; background:var(--bg-secondary); color:var(--text-primary); transition:all var(--transition-base); }
+.search-input:focus { outline:none; border-color:var(--primary-400); box-shadow:0 0 0 3px rgba(13,148,136,0.1); }
+.category-filters { display:flex; gap:var(--space-2); flex-wrap:wrap; align-items:center; }
+.filter-button { padding:var(--space-2) var(--space-4); border:1px solid var(--border-color); background:var(--bg-secondary); border-radius:var(--radius-full); cursor:pointer; transition:all var(--transition-base); font-weight:500; color:var(--text-primary); font-family:var(--font-family); font-size:0.9rem; }
+.filter-button:hover, .filter-button.active { background:var(--primary-600); color:white; border-color:var(--primary-600); }
+.disease-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:var(--space-6); margin-bottom:var(--space-8); }
+.disease-card { background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-2xl); padding:var(--space-5); transition:all var(--transition-base); display:flex; flex-direction:column; height:100%; }
+.disease-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); border-color:var(--primary-300); }
+.disease-card-header { display:flex; align-items:flex-start; justify-content:space-between; margin-bottom:var(--space-3); }
+.disease-name { font-size:1.15rem; font-weight:700; color:var(--text-primary); flex:1; }
+.category-badge { background:var(--primary-100); color:var(--primary-700); padding:var(--space-1) var(--space-2); border-radius:var(--radius-md); font-size:0.7rem; font-weight:600; text-transform:uppercase; white-space:nowrap; margin-left:var(--space-2); }
+.category-badge.respiratory,
+.category-badge.infectious,
+.category-badge.chronic,
+.category-badge.other { background:var(--bg-tertiary); color:var(--text-secondary); }
+.symptoms-preview { margin:var(--space-3) 0; color:var(--text-secondary); font-size:0.875rem; line-height:1.6; }
+.symptoms-list { list-style:none; padding:0; margin:0; }
+.symptoms-list li { padding:var(--space-1) 0; display:flex; align-items:center; gap:var(--space-2); }
+.symptoms-list li::before { content:'•'; color:var(--primary-600); font-weight:bold; }
+.disease-actions { display:flex; gap:var(--space-2); margin-top:auto; padding-top:var(--space-4); border-top:1px solid var(--border-color); }
+.disease-actions .btn { flex:1; }
+.section-title { font-size:1.5rem; font-weight:700; color:var(--text-primary); margin-bottom:var(--space-6); padding-bottom:var(--space-3); border-bottom:2px solid var(--border-color); }
+.section-container { margin-bottom:var(--space-12); }
+.no-results { text-align:center; padding:var(--space-8); background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-2xl); }
+</style>
+{% endblock %}
+
+{% block content %}
+{% macro render_disease_card(disease) %}
+{% set symptoms = get_symptoms(disease) if get_symptoms else [] %}
+{% set category_name = 'respiratory' if disease in ['Asthma', 'Bronchitis (Acute)', 'Bronchial Asthma', 'COVID-19', 'Pneumonia', 'Tuberculosis', 'Chronic Bronchitis', 'Respiratory Infection']
+                      else 'infectious' if disease in ['Malaria', 'Dengue', 'Typhoid', 'Chickenpox', 'Measles', 'Hepatitis A', 'Hepatitis B', 'Hepatitis C', 'Influenza']
+                      else 'chronic' if disease in ['Diabetes', 'Hypertension', 'Arthritis', 'GERD', 'Migraine', 'Hypothyroidism', 'Hyperthyroidism']
+                      else 'other' %}
+<div class="disease-card" data-disease-name="{{ disease }}" data-category="{{ category_name }}">
+    <div class="disease-card-header">
+        <h3 class="disease-name">{{ disease }}</h3>
+        <span class="category-badge {{ category_name }}">{{ category_name }}</span>
+    </div>
+    <div class="symptoms-preview">
+        <p style="font-weight:500; margin-bottom:var(--space-2);">Common Symptoms:</p>
+        <ul class="symptoms-list">
+            {% if symptoms and symptoms|length > 0 %}
+                {% for symptom in symptoms[:3] %}<li>{{ symptom }}</li>{% endfor %}
+                {% if symptoms|length > 3 %}<li><em>and {{ symptoms|length - 3 }} more...</em></li>{% endif %}
+            {% else %}
+                <li><em>Learn more for complete symptom list</em></li>
+            {% endif %}
+        </ul>
+    </div>
+    <div class="disease-actions">
+        <a href="{{ url_for('diagnosis.disease_dashboard', disease_name=disease) }}" class="btn btn-primary">
+            <i class="fas fa-arrow-right mr-1" aria-hidden="true"></i>Learn More
+        </a>
+    </div>
+</div>
+{% endmacro %}
+
+<!-- Hero -->
+<div class="bg-gradient-primary text-white" style="padding:var(--space-10) 0; margin-bottom:var(--space-8);">
+    <div class="container">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-book-medical mr-2" aria-hidden="true"></i>Disease Encyclopedia</h1>
+        <p class="text-lg" style="opacity:0.95;">Explore comprehensive information about diseases, symptoms, and treatments</p>
+    </div>
+</div>
+
+<main class="container" style="padding-bottom:var(--space-12);">
+    <!-- Search and Filter -->
+    <div class="search-section">
+        <div class="search-container">
+            <input type="text" id="disease-search" class="search-input"
+                   placeholder="Search diseases by name..." autocomplete="off" aria-label="Search diseases">
+        </div>
+        <div class="category-filters" role="group" aria-label="Filter by category">
+            <button class="filter-button active" data-category="all"><i class="fas fa-th mr-1" aria-hidden="true"></i>All</button>
+            <button class="filter-button" data-category="respiratory"><i class="fas fa-lungs mr-1" aria-hidden="true"></i>Respiratory</button>
+            <button class="filter-button" data-category="infectious"><i class="fas fa-virus mr-1" aria-hidden="true"></i>Infectious</button>
+            <button class="filter-button" data-category="chronic"><i class="fas fa-calendar-check mr-1" aria-hidden="true"></i>Chronic</button>
+            <button class="filter-button" data-category="other"><i class="fas fa-ellipsis-h mr-1" aria-hidden="true"></i>Other</button>
+        </div>
+    </div>
+
+    <!-- Disease Sections -->
+    <div id="diseases-container">
+        <div class="section-container" data-category="respiratory">
+            <h2 class="section-title"><i class="fas fa-lungs mr-2" aria-hidden="true"></i>Respiratory Diseases</h2>
+            <div class="disease-grid">
+                {% for disease in diseases %}
+                    {% if disease in ['Asthma', 'Bronchitis (Acute)', 'Bronchial Asthma', 'COVID-19', 'Pneumonia', 'Tuberculosis', 'Chronic Bronchitis', 'Respiratory Infection'] %}
+                        {{ render_disease_card(disease) }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="section-container" data-category="infectious">
+            <h2 class="section-title"><i class="fas fa-virus mr-2" aria-hidden="true"></i>Infectious Diseases</h2>
+            <div class="disease-grid">
+                {% for disease in diseases %}
+                    {% if disease in ['Malaria', 'Dengue', 'Typhoid', 'Chickenpox', 'Measles', 'Hepatitis A', 'Hepatitis B', 'Hepatitis C', 'Influenza'] %}
+                        {{ render_disease_card(disease) }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="section-container" data-category="chronic">
+            <h2 class="section-title"><i class="fas fa-calendar-check mr-2" aria-hidden="true"></i>Chronic Conditions</h2>
+            <div class="disease-grid">
+                {% for disease in diseases %}
+                    {% if disease in ['Diabetes', 'Hypertension', 'Arthritis', 'GERD', 'Migraine', 'Hypothyroidism', 'Hyperthyroidism'] %}
+                        {{ render_disease_card(disease) }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="section-container" data-category="other">
+            <h2 class="section-title"><i class="fas fa-ellipsis-h mr-2" aria-hidden="true"></i>Other Conditions</h2>
+            <div class="disease-grid">
+                {% for disease in diseases %}
+                    {% if disease not in ['Asthma', 'Bronchitis (Acute)', 'Bronchial Asthma', 'COVID-19', 'Pneumonia', 'Tuberculosis', 'Chronic Bronchitis', 'Respiratory Infection',
+                                        'Malaria', 'Dengue', 'Typhoid', 'Chickenpox', 'Measles', 'Hepatitis A', 'Hepatitis B', 'Hepatitis C', 'Influenza',
+                                        'Diabetes', 'Hypertension', 'Arthritis', 'GERD', 'Migraine', 'Hypothyroidism', 'Hyperthyroidism'] %}
+                        {{ render_disease_card(disease) }}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- No Results -->
+    <div id="no-results" class="no-results hidden" role="status" aria-live="polite">
+        <i class="fas fa-search" style="font-size:3rem; color:var(--text-muted); display:block; margin-bottom:var(--space-3);" aria-hidden="true"></i>
+        <h3 class="text-xl font-semibold mb-2">No Results Found</h3>
+        <p class="text-secondary">We couldn't find any diseases matching your search. Try a different term or browse by category.</p>
+    </div>
+
+    <!-- Pagination (shown when searching/filtering) -->
+    <p class="results-count" id="resultsCount" style="display:none;" aria-live="polite"></p>
+    <div class="pagination" id="paginationControls" style="display:none;" role="navigation" aria-label="Disease results pagination">
+        <button class="pagination-btn" id="prevPageBtn" disabled aria-label="Previous page">&#8592; Prev</button>
+        <span class="pagination-info" id="pageInfo" aria-live="polite"></span>
+        <button class="pagination-btn" id="nextPageBtn" aria-label="Next page">Next &#8594;</button>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function DiseaseFilter() {
+    var allCards = Array.from(document.querySelectorAll('[data-disease-name]'));
+    var searchInput = document.getElementById('disease-search');
+    var filterButtons = document.querySelectorAll('.filter-button');
+    var noResults = document.getElementById('no-results');
+    var resultsCount = document.getElementById('resultsCount');
+    var paginationControls = document.getElementById('paginationControls');
+    var prevBtn = document.getElementById('prevPageBtn');
+    var nextBtn = document.getElementById('nextPageBtn');
+    var pageInfo = document.getElementById('pageInfo');
+    var activeCategory = 'all';
+    var filteredCards = [];
+    var currentPage = 1;
+    var PAGE_SIZE = 20;
+
+    function getFiltered() {
+        var q = searchInput.value.toLowerCase().trim();
+        return allCards.filter(function(card) {
+            var name = card.getAttribute('data-disease-name').toLowerCase();
+            var cat = card.getAttribute('data-category');
+            return (q === '' || name.includes(q)) && (activeCategory === 'all' || cat === activeCategory);
+        });
+    }
+
+    function renderPage(page) {
+        var total = filteredCards.length;
+        var isFiltering = searchInput.value.trim() !== '' || activeCategory !== 'all';
+        allCards.forEach(function(c) { c.style.display = 'none'; });
+        var start = (page - 1) * PAGE_SIZE;
+        var end = Math.min(start + PAGE_SIZE, total);
+        for (var i = start; i < end; i++) { filteredCards[i].style.display = ''; }
+
+        // Show/hide section headers
+        document.querySelectorAll('.section-container').forEach(function(sec) {
+            var visible = Array.from(sec.querySelectorAll('[data-disease-name]')).some(function(c) { return c.style.display !== 'none'; });
+            sec.style.display = visible ? '' : 'none';
+        });
+
+        noResults.classList.toggle('hidden', total > 0);
+
+        if (isFiltering && total > 0) {
+            resultsCount.style.display = '';
+            resultsCount.textContent = 'Showing ' + (start + 1) + '–' + end + ' of ' + total + ' results';
+        } else {
+            resultsCount.style.display = 'none';
+        }
+
+        if (total > PAGE_SIZE) {
+            paginationControls.style.display = '';
+            var totalPages = Math.ceil(total / PAGE_SIZE);
+            pageInfo.textContent = 'Page ' + page + ' of ' + totalPages;
+            prevBtn.disabled = page <= 1;
+            nextBtn.disabled = page >= totalPages;
+        } else {
+            paginationControls.style.display = 'none';
+        }
+    }
+
+    function update() {
+        filteredCards = getFiltered();
+        currentPage = 1;
+        renderPage(currentPage);
+    }
+
+    prevBtn.addEventListener('click', function() { if (currentPage > 1) { currentPage--; renderPage(currentPage); } });
+    nextBtn.addEventListener('click', function() {
+        if (currentPage < Math.ceil(filteredCards.length / PAGE_SIZE)) { currentPage++; renderPage(currentPage); }
+    });
+    searchInput.addEventListener('input', update);
+    filterButtons.forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            filterButtons.forEach(function(b) { b.classList.remove('active'); });
+            btn.classList.add('active');
+            activeCategory = btn.getAttribute('data-category');
+            update();
+        });
+    });
+
+    // Initial render (no filter active — show all sections normally)
+    update();
+})();
+</script>
+{% endblock %}

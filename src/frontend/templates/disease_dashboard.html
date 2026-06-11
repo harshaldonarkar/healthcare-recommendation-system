@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}Disease Information{% endblock %}
+{% block meta_description %}Comprehensive medical information and management guidance for your condition.{% endblock %}
+
+{% block extra_head %}
+<style>
+.hero-banner { background:linear-gradient(135deg,var(--primary-600) 0%,var(--primary-700) 100%); padding:var(--space-12) 0; color:white; position:relative; overflow:hidden; }
+.hero-banner::before { content:''; position:absolute; top:0; right:0; width:400px; height:400px; background:radial-gradient(circle,rgba(255,255,255,0.1) 0%,transparent 70%); border-radius:50%; pointer-events:none; }
+.hero-content { position:relative; z-index:1; }
+.hero-title { font-size:3rem; font-weight:800; margin-bottom:var(--space-3); line-height:1.1; }
+.category-badge { display:inline-block; background:rgba(255,255,255,0.25); border:1px solid rgba(255,255,255,0.5); color:white; padding:var(--space-2) var(--space-4); border-radius:var(--radius-full); font-size:0.85rem; font-weight:600; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:var(--space-4); }
+.stats-bar { background:var(--bg-tertiary); padding:var(--space-6) 0; border-bottom:1px solid var(--border-color); margin-bottom:var(--space-8); }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--space-4); }
+.stat-item { display:flex; align-items:center; gap:var(--space-3); padding:var(--space-4); background:var(--bg-secondary); border-radius:var(--radius-lg); border:1px solid var(--border-color); }
+.stat-icon { width:48px; height:48px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-lg); font-size:1.3rem; background:var(--primary-50); color:var(--primary-600); flex-shrink:0; }
+.stat-content h6 { font-size:0.85rem; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.05em; margin-bottom:var(--space-1); }
+.stat-val { font-size:1.25rem; font-weight:700; }
+.dashboard-layout { display:grid; grid-template-columns:2fr 1fr; gap:var(--space-8); padding:var(--space-8) 0; }
+.info-card { background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-md); margin-bottom:var(--space-8); }
+.card-header-colored { padding:var(--space-6); color:white; display:flex; align-items:center; gap:var(--space-3); font-size:1.1rem; font-weight:600; }
+.card-header-colored.primary { background:linear-gradient(135deg,var(--primary-600) 0%,var(--primary-700) 100%); }
+.card-header-colored.success { background:linear-gradient(135deg,var(--success) 0%,var(--success-dark) 100%); }
+.card-header-colored.info { background:linear-gradient(135deg,var(--info) 0%,var(--info-dark) 100%); }
+.card-body-custom { padding:var(--space-6); }
+.card-body-custom p { color:var(--text-secondary); line-height:1.7; margin-bottom:var(--space-4); }
+.card-body-custom h5 { color:var(--text-primary); margin-bottom:var(--space-3); display:flex; align-items:center; gap:var(--space-2); }
+.symptoms-grid { display:flex; flex-wrap:wrap; gap:var(--space-2); margin-top:var(--space-3); }
+.symptom-tag { background:var(--primary-50); color:var(--primary-700); padding:var(--space-2) var(--space-3); border-radius:var(--radius-md); font-size:0.875rem; font-weight:500; display:inline-flex; align-items:center; gap:var(--space-1); }
+.timeline { position:relative; padding-left:var(--space-6); }
+.timeline::before { content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:linear-gradient(180deg,var(--primary-600) 0%,var(--primary-300) 100%); border-radius:var(--radius-full); }
+.timeline-item { position:relative; padding-left:var(--space-8); margin-bottom:var(--space-6); }
+.timeline-dot { position:absolute; left:-12px; top:4px; width:24px; height:24px; background:var(--primary-500); border:3px solid white; border-radius:50%; box-shadow:0 0 0 4px var(--primary-100); }
+.timeline-content { background:var(--bg-tertiary); padding:var(--space-4); border-radius:var(--radius-lg); border-left:3px solid var(--primary-300); }
+.timeline-content h6 { color:var(--primary-600); margin-bottom:var(--space-2); font-size:0.95rem; font-weight:700; text-transform:uppercase; }
+.info-list { display:flex; flex-direction:column; gap:var(--space-3); }
+.list-item { display:flex; align-items:flex-start; gap:var(--space-3); padding:var(--space-3); background:var(--bg-tertiary); border-radius:var(--radius-md); transition:all var(--transition-fast); }
+.list-item:hover { background:var(--primary-50); border-left:3px solid var(--primary-500); }
+.list-icon { flex-shrink:0; width:32px; height:32px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-md); color:var(--success); font-size:1rem; }
+.list-text { color:var(--text-primary); line-height:1.6; }
+.quick-stats { background:linear-gradient(135deg,var(--primary-50) 0%,var(--primary-100) 100%); padding:var(--space-6); border-radius:var(--radius-lg); margin-bottom:var(--space-8); border:1px solid var(--primary-200); }
+.quick-stats h6 { color:var(--primary-700); font-size:0.85rem; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:var(--space-4); }
+.stat-row { display:flex; justify-content:space-between; align-items:center; padding:var(--space-3) 0; border-bottom:1px solid var(--primary-200); }
+.stat-row:last-child { border-bottom:none; }
+.stat-row-label { color:var(--primary-700); font-weight:600; }
+.stat-row-value { color:var(--primary-600); font-size:1.1rem; font-weight:700; }
+.cta-card { background:var(--bg-secondary); border:2px solid var(--border-color); border-radius:var(--radius-lg); padding:var(--space-6); text-align:center; margin-bottom:var(--space-6); transition:all var(--transition-base); display:flex; flex-direction:column; align-items:center; gap:var(--space-4); }
+.cta-card:hover { border-color:var(--primary-400); box-shadow:var(--shadow-lg); }
+.cta-card.success { border-color:var(--success-light); background:linear-gradient(135deg,var(--success-light) 0%,rgba(16,185,129,0.05) 100%); }
+.cta-card.success:hover { border-color:var(--success); }
+.cta-card-icon { width:56px; height:56px; display:flex; align-items:center; justify-content:center; border-radius:var(--radius-lg); background:var(--primary-50); color:var(--primary-600); font-size:1.5rem; }
+.cta-card.success .cta-card-icon { background:var(--success-light); color:var(--success-dark); }
+.cta-card h5 { color:var(--text-primary); margin:0; }
+.cta-card p { color:var(--text-muted); margin:0; font-size:0.95rem; }
+.related-diseases-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:var(--space-4); }
+.disease-card { background:var(--bg-tertiary); border:1px solid var(--border-color); border-radius:var(--radius-lg); padding:var(--space-4); transition:all var(--transition-base); text-align:center; }
+.disease-card:hover { border-color:var(--primary-400); background:var(--bg-secondary); box-shadow:var(--shadow-md); transform:translateY(-4px); }
+.disease-card-name { font-weight:700; color:var(--text-primary); margin-bottom:var(--space-2); }
+.disease-card-similarity { display:inline-block; background:var(--info-light); color:var(--info-dark); padding:var(--space-1) var(--space-2); border-radius:var(--radius-sm); font-size:0.8rem; font-weight:600; margin-bottom:var(--space-3); }
+.disease-card-symptoms { display:flex; flex-wrap:wrap; gap:var(--space-1); justify-content:center; margin-bottom:var(--space-3); }
+.disease-card-symptom { background:var(--bg-secondary); padding:var(--space-1) var(--space-2); border-radius:var(--radius-sm); font-size:0.75rem; color:var(--text-muted); border:1px solid var(--border-color); }
+.disclaimer-card { background:linear-gradient(135deg,var(--warning-light) 0%,var(--accent-50) 100%); border-left:4px solid var(--warning); padding:var(--space-6); border-radius:var(--radius-lg); margin-top:var(--space-8); }
+.disclaimer-card strong { color:var(--warning-dark); display:flex; align-items:center; gap:var(--space-2); margin-bottom:var(--space-2); font-size:1.05rem; }
+.disclaimer-card p { color:var(--text-primary); margin:0; line-height:1.7; }
+.loading-state { text-align:center; padding:var(--space-16) var(--space-4); }
+.loading-state i { font-size:2.5rem; color:var(--primary-600); margin-bottom:var(--space-4); display:block; }
+.loading-state p { color:var(--text-muted); font-size:1.05rem; }
+@media (max-width:1023px) { .dashboard-layout { grid-template-columns:1fr; } }
+@media (max-width:767px) { .hero-title { font-size:1.75rem; } .stats-grid { grid-template-columns:repeat(2,1fr); } .related-diseases-grid { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hero Banner -->
+<div class="hero-banner">
+    <div class="container">
+        <div class="hero-content">
+            <div class="category-badge" id="category-badge">Medical Condition</div>
+            <h1 class="hero-title" id="disease-title">Loading Disease...</h1>
+            <p style="font-size:1.1rem; opacity:0.95; margin:0;">Comprehensive medical information and management guidance</p>
+        </div>
+    </div>
+</div>
+
+<!-- Stats Bar -->
+<div class="stats-bar">
+    <div class="container">
+        <div class="stats-grid" id="stats-container">
+            <div class="stat-item">
+                <div class="stat-icon" aria-hidden="true"><i class="fas fa-clock"></i></div>
+                <div><h6>Onset</h6><div class="stat-val">Variable</div></div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon" aria-hidden="true"><i class="fas fa-chart-pie"></i></div>
+                <div><h6>Prevalence</h6><div class="stat-val">Common</div></div>
+            </div>
+            <div class="stat-item">
+                <div class="stat-icon" aria-hidden="true"><i class="fas fa-heartbeat"></i></div>
+                <div><h6>Severity</h6><div class="stat-val" id="severity-level">Moderate</div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<main class="container" style="padding-bottom:var(--space-16);" id="main-content">
+    <a href="{{ url_for('diagnosis.home') }}" class="btn btn-outline mt-6 mb-4">
+        <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Back to Home
+    </a>
+
+    <div id="disease-dashboard" class="loading-state" role="status" aria-live="polite">
+        <i class="fas fa-spinner" style="animation:spin 1s linear infinite;" aria-hidden="true"></i>
+        <p>Loading disease information...</p>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function DiseaseDashboard() {
+    'use strict';
+    var pathParts = window.location.pathname.split('/');
+    var diseaseName = pathParts[pathParts.length - 1];
+
+    document.getElementById('disease-title').textContent = diseaseName;
+    document.getElementById('category-badge').textContent = getConditionType(diseaseName);
+    document.getElementById('severity-level').textContent = getSeverityLevel(diseaseName);
+
+    fetch('/api/disease-dashboard/' + encodeURIComponent(diseaseName))
+        .then(function(r) { return r.json(); })
+        .then(function(data) { renderDashboard(data, diseaseName); })
+        .catch(function() {
+            document.getElementById('disease-dashboard').innerHTML = '<div class="disclaimer-card"><strong><i class="fas fa-exclamation-triangle mr-2"></i>Error Loading Data</strong><p>Unable to load information for ' + diseaseName + '. Please try again later.</p></div>';
+        });
+
+    function renderDashboard(data, disease) {
+        var bi = data.basic_info;
+        var sympTags = bi.symptoms.map(function(s) { return '<span class="symptom-tag"><i class="fas fa-check-circle" aria-hidden="true"></i> ' + s + '</span>'; }).join('');
+        var meds = bi.medicines.length ? bi.medicines.map(function(m) { return '<div class="list-item"><div class="list-icon"><i class="fas fa-pill" aria-hidden="true"></i></div><div class="list-text">' + m + '</div></div>'; }).join('') : '<p style="color:var(--text-muted);">No specific medications listed.</p>';
+        var precs = bi.precautions.map(function(p) { return '<div class="list-item"><div class="list-icon"><i class="fas fa-exclamation-circle" aria-hidden="true"></i></div><div class="list-text">' + p + '</div></div>'; }).join('');
+        var related = data.related_diseases.map(function(d) { return '<div class="disease-card"><div class="disease-card-name">' + d.name + '</div><div class="disease-card-similarity">' + d.similarity + '% similar</div><div class="disease-card-symptoms">' + d.common_symptoms.slice(0,2).map(function(s) { return '<span class="disease-card-symptom">' + s + '</span>'; }).join('') + '</div><a href="/disease-dashboard/' + d.name + '" class="btn btn-sm btn-outline" style="font-size:0.8rem;">View <i class="fas fa-arrow-right ml-1"></i></a></div>'; }).join('');
+        var specialists = data.specialist_types.map(function(s) { return '<div class="list-item"><div class="list-icon"><i class="fas fa-user-md" aria-hidden="true"></i></div><div class="list-text"><strong>' + s.type + '</strong><div style="font-size:0.85rem;color:var(--text-muted);margin-top:var(--space-1);">' + s.description + '</div></div></div>'; }).join('');
+        var prevention = data.prevention_tips.map(function(t) { return '<div class="list-item"><div class="list-icon"><i class="fas fa-check-circle" aria-hidden="true"></i></div><div class="list-text">' + t + '</div></div>'; }).join('');
+        var timeline = bi.symptoms.slice(0,4).map(function(s, i) { return '<div class="timeline-item"><div class="timeline-dot"></div><div class="timeline-content"><h6>Stage ' + (i+1) + '</h6><strong>' + s + '</strong><p>This symptom typically appears in the early to middle stages.</p></div></div>'; }).join('');
+
+        document.getElementById('disease-dashboard').innerHTML =
+            '<div class="dashboard-layout">'
+            + '<div>'
+            + '<div class="info-card"><div class="card-header-colored primary"><i class="fas fa-info-circle" aria-hidden="true"></i>Overview &amp; Description</div><div class="card-body-custom"><h5><i class="fas fa-paragraph mr-2" aria-hidden="true"></i>About This Condition</h5><p>' + (bi.causes || 'No detailed description available.') + '</p><h5 style="margin-top:var(--space-6);"><i class="fas fa-list mr-2" aria-hidden="true"></i>Common Symptoms</h5><div class="symptoms-grid">' + sympTags + '</div></div></div>'
+            + '<div class="info-card"><div class="card-header-colored info"><i class="fas fa-clock" aria-hidden="true"></i>Symptom Progression</div><div class="card-body-custom"><div class="timeline">' + timeline + '</div></div></div>'
+            + '<div class="info-card"><div class="card-header-colored primary"><i class="fas fa-stethoscope" aria-hidden="true"></i>Treatment &amp; Management</div><div class="card-body-custom"><h5><i class="fas fa-pills mr-2" aria-hidden="true"></i>Medication Options</h5><div class="info-list">' + meds + '</div><h5 style="margin-top:var(--space-6);"><i class="fas fa-apple-alt mr-2" aria-hidden="true"></i>Dietary Recommendations</h5><p>' + bi.diet + '</p><h5 style="margin-top:var(--space-6);"><i class="fas fa-dumbbell mr-2" aria-hidden="true"></i>Exercise Guidance</h5><p>' + bi.workout + '</p></div></div>'
+            + '<div class="info-card"><div class="card-header-colored info"><i class="fas fa-shield-alt" aria-hidden="true"></i>Important Precautions</div><div class="card-body-custom"><div class="info-list">' + precs + '</div></div></div>'
+            + '<div class="info-card"><div class="card-header-colored primary"><i class="fas fa-exchange-alt" aria-hidden="true"></i>Related Conditions</div><div class="card-body-custom"><p style="margin-bottom:var(--space-6);">These conditions share symptoms with ' + disease + ':</p><div class="related-diseases-grid">' + related + '</div></div></div>'
+            + '</div>'
+            + '<div>'
+            + '<div class="quick-stats"><h6><i class="fas fa-chart-bar mr-2" aria-hidden="true"></i>Quick Statistics</h6><div class="stat-row"><span class="stat-row-label">Common Symptoms</span><span class="stat-row-value">' + bi.symptoms.length + '</span></div><div class="stat-row"><span class="stat-row-label">Medications</span><span class="stat-row-value">' + bi.medicines.length + '</span></div><div class="stat-row"><span class="stat-row-label">Precautions</span><span class="stat-row-value">' + bi.precautions.length + '</span></div><div class="stat-row"><span class="stat-row-label">Specialist Types</span><span class="stat-row-value">' + data.specialist_types.length + '</span></div></div>'
+            + '<div class="cta-card success"><div class="cta-card-icon"><i class="fas fa-hospital-user" aria-hidden="true"></i></div><h5>Find Specialists</h5><p>Connect with healthcare professionals for this condition</p><a href="/doctors/recommend/' + disease + '" class="btn btn-success" style="width:100%;"><i class="fas fa-search mr-1"></i>Find Doctors</a></div>'
+            + '<div class="cta-card"><div class="cta-card-icon"><i class="fas fa-clipboard-list" aria-hidden="true"></i></div><h5>Create Treatment Plan</h5><p>Get a personalized management strategy</p><a href="/create-treatment-plan" class="btn btn-primary" style="width:100%;"><i class="fas fa-plus mr-1"></i>Start Plan</a></div>'
+            + '<div class="info-card"><div class="card-header-colored info"><i class="fas fa-stethoscope" aria-hidden="true"></i>Recommended Specialists</div><div class="card-body-custom"><div class="info-list">' + specialists + '</div></div></div>'
+            + '<div class="info-card"><div class="card-header-colored success"><i class="fas fa-shield-alt" aria-hidden="true"></i>Prevention Tips</div><div class="card-body-custom"><div class="info-list">' + prevention + '</div></div></div>'
+            + '</div>'
+            + '</div>'
+            + '<div class="disclaimer-card"><strong><i class="fas fa-exclamation-triangle mr-2" aria-hidden="true"></i>Important Medical Disclaimer</strong><p>This information is for educational purposes only and is not intended as medical advice. Always consult with a qualified healthcare provider for diagnosis and treatment.</p></div>';
+    }
+
+    function getConditionType(disease) {
+        var d = disease.toLowerCase();
+        if (['flu','cold','covid','hepatitis','pneumonia','infection','virus','bacterial'].some(function(t) { return d.includes(t); })) return 'Infectious';
+        if (['chronic','diabetes','hypertension','arthritis'].some(function(t) { return d.includes(t); })) return 'Chronic';
+        if (['lupus','rheumatoid','multiple sclerosis','crohn'].some(function(t) { return d.includes(t); })) return 'Autoimmune';
+        return 'Medical Condition';
+    }
+
+    function getSeverityLevel(disease) {
+        var d = disease.toLowerCase();
+        if (['common cold','allergy','tension headache','indigestion'].some(function(t) { return d.includes(t); })) return 'Mild';
+        if (['heart attack','stroke','tuberculosis','meningitis'].some(function(t) { return d.includes(t); })) return 'Severe';
+        return 'Moderate';
+    }
+})();
+</script>
+{% endblock %}

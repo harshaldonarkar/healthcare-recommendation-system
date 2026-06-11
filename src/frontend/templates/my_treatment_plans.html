@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}My Treatment Plans{% endblock %}
+{% block meta_description %}View and manage your personalized treatment plans on Health Advisor.{% endblock %}
+
+{% block extra_head %}
+<style>
+.plan-card { background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-2xl); overflow:hidden; transition:all var(--transition-base); display:flex; flex-direction:column; height:100%; box-shadow:var(--shadow-sm); }
+.plan-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); border-color:var(--primary-300); }
+.plan-card-header { background:linear-gradient(135deg,var(--primary-600) 0%,var(--primary-700) 100%); color:white; padding:var(--space-5); }
+.plan-card-header h4 { margin:0; font-size:1.25rem; font-weight:700; }
+.plan-card-body { padding:var(--space-5); flex:1; display:flex; flex-direction:column; }
+.plan-meta { font-size:0.875rem; color:var(--text-secondary); margin-bottom:var(--space-4); display:flex; align-items:center; gap:var(--space-2); }
+.progress-label { display:flex; justify-content:space-between; margin-bottom:var(--space-2); font-weight:500; font-size:0.875rem; }
+.progress-bar-container { height:8px; background:var(--gray-200); border-radius:var(--radius-full); overflow:hidden; margin-bottom:var(--space-4); }
+.progress-bar-fill { height:100%; background:linear-gradient(90deg,var(--primary-600),var(--primary-500)); border-radius:var(--radius-full); }
+.plan-stats { display:flex; justify-content:space-between; align-items:center; padding:var(--space-3) 0; border-top:1px solid var(--border-color); border-bottom:1px solid var(--border-color); margin:var(--space-3) 0; font-size:0.875rem; }
+.stat-item { display:flex; flex-direction:column; align-items:center; }
+.stat-value { font-size:1.25rem; font-weight:700; color:var(--primary-600); }
+.stat-label { color:var(--text-secondary); margin-top:var(--space-1); font-size:0.8rem; }
+.status-badge { display:inline-block; padding:var(--space-1) var(--space-3); border-radius:var(--radius-full); font-size:0.75rem; font-weight:600; text-transform:uppercase; margin-bottom:var(--space-3); }
+.status-active { background:var(--success-light); color:var(--success-dark); }
+.status-completed { background:var(--info-light); color:var(--info-dark); }
+.status-paused { background:var(--warning-light); color:var(--warning-dark); }
+.plan-footer { display:flex; gap:var(--space-3); margin-top:auto; padding-top:var(--space-4); }
+.plan-footer .btn { flex:1; }
+.plan-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(320px,1fr)); gap:var(--space-6); }
+.empty-state { text-align:center; padding:var(--space-12) var(--space-6); background:var(--bg-secondary); border:1px solid var(--border-color); border-radius:var(--radius-2xl); }
+@media (max-width:767px) { .plan-grid { grid-template-columns:1fr; } .plan-footer { flex-direction:column; } .plan-stats { flex-direction:column; gap:var(--space-3); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} mb-4" role="alert">
+                    <div class="alert-icon"><i class="fas fa-{{ 'exclamation-circle' if category == 'error' else 'check-circle' }}" aria-hidden="true"></i></div>
+                    <div class="alert-content">{{ message }}</div>
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <!-- Page Header -->
+    <div class="flex justify-between items-center mb-8 flex-wrap gap-4">
+        <div>
+            <h1 class="text-4xl font-bold"><i class="fas fa-clipboard-list mr-2 text-primary" aria-hidden="true"></i>My Treatment Plans</h1>
+            {% if plans and plans|length > 0 %}
+            <p class="text-secondary mt-1">You have {{ plans|length }} active plan{{ 's' if plans|length != 1 else '' }}</p>
+            {% endif %}
+        </div>
+        {% if plans and plans|length > 0 %}
+        <a href="{{ url_for('diagnosis.home') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-stethoscope mr-2" aria-hidden="true"></i>Start New Analysis
+        </a>
+        {% endif %}
+    </div>
+
+    {% if not plans or plans|length == 0 %}
+    <!-- Empty State -->
+    <div class="empty-state">
+        <i class="fas fa-inbox" style="font-size:4rem; color:var(--text-muted); display:block; margin-bottom:var(--space-4);" aria-hidden="true"></i>
+        <h2 class="text-2xl font-semibold mb-2">No Treatment Plans Yet</h2>
+        <p class="text-secondary mb-6" style="line-height:1.6;">You haven't created any treatment plans yet.<br>Start by analyzing your symptoms to get personalized recommendations.</p>
+        <a href="{{ url_for('diagnosis.home') }}" class="btn btn-primary btn-lg">
+            <i class="fas fa-stethoscope mr-2" aria-hidden="true"></i>Start Symptom Analysis
+        </a>
+    </div>
+    {% else %}
+    <!-- Plans Grid -->
+    <div class="plan-grid">
+        {% for plan in plans %}
+        <div class="plan-card">
+            <div class="plan-card-header">
+                <h4>{{ plan.disease|default('Unknown Disease') }}</h4>
+            </div>
+            <div class="plan-card-body">
+                <p class="plan-meta">
+                    <i class="fas fa-calendar-alt" aria-hidden="true"></i>
+                    <span>Created {{ plan.created_at|default('N/A') }}</span>
+                </p>
+                <span class="status-badge status-{{ (plan.status|default('Active')|lower)|replace(' ', '-') }}">
+                    {{ plan.status|default('Active') }}
+                </span>
+                <div>
+                    <div class="progress-label">
+                        <span>Overall Progress</span>
+                        <span style="color:var(--primary-600); font-weight:700;">{{ plan.progress|default(0) }}%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width:{{ plan.progress|default(0) }}%;"></div>
+                    </div>
+                </div>
+                <div class="plan-stats">
+                    <div class="stat-item">
+                        <span class="stat-value">{{ plan.days_since_start|default(0) }}</span>
+                        <span class="stat-label">Days Active</span>
+                    </div>
+                    <div style="width:1px; background:var(--border-color);"></div>
+                    <div class="stat-item">
+                        <span class="stat-value">{{ plan.steps_completed|default(0) }}/{{ plan.total_steps|default(0) }}</span>
+                        <span class="stat-label">Steps</span>
+                    </div>
+                </div>
+                <div class="plan-footer">
+                    <a href="{{ url_for('treatment.treatment_tracker_page', user_id=session.user_id, plan_id=plan.id) }}" class="btn btn-primary">
+                        <i class="fas fa-chart-line mr-1" aria-hidden="true"></i>View Progress
+                    </a>
+                    <a href="{{ url_for('diagnosis.disease_dashboard', disease_name=plan.disease) }}" class="btn btn-outline">
+                        <i class="fas fa-info-circle mr-1" aria-hidden="true"></i>Info
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</main>
+{% endblock %}

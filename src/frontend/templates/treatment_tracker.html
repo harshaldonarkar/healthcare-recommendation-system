@@ -1,0 +1,381 @@
+{% extends "base.html" %}
+{% block title %}Treatment Progress Tracker{% endblock %}
+{% block meta_description %}Track your treatment progress, log symptoms, and manage your health plan.{% endblock %}
+
+{% block extra_head %}
+<style>
+.tracker-card { border-radius:var(--radius-2xl); box-shadow:var(--shadow-md); margin-bottom:var(--space-6); border:1px solid var(--border-color); background:var(--bg-secondary); overflow:hidden; }
+.tracker-card-header { background:linear-gradient(135deg,var(--primary-600) 0%,var(--primary-800) 100%); color:white; padding:var(--space-5); border-bottom:1px solid var(--primary-700); }
+.tracker-card-header h3 { margin:0; font-size:1.25rem; display:flex; align-items:center; gap:var(--space-2); }
+.tracker-card-body { padding:var(--space-6); }
+.treatment-step { display:flex; align-items:center; padding:var(--space-4); border-radius:var(--radius-lg); margin-bottom:var(--space-4); background:var(--bg-tertiary); transition:all var(--transition-base); border-left:4px solid var(--primary-500); }
+.treatment-step:hover { transform:translateY(-3px); box-shadow:var(--shadow-lg); }
+.step-icon { width:50px; height:50px; border-radius:50%; display:flex; align-items:center; justify-content:center; margin-right:var(--space-4); flex-shrink:0; font-size:1.5rem; }
+.step-icon.medication { background:var(--info-light); color:var(--info); }
+.step-icon.diet { background:var(--success-light); color:var(--success); }
+.step-icon.exercise { background:var(--warning-light); color:var(--warning); }
+.step-icon.precaution { background:var(--danger-light); color:var(--danger); }
+.step-content { flex:1; }
+.step-status { display:inline-block; padding:var(--space-1) var(--space-3); border-radius:var(--radius-full); font-size:0.75rem; font-weight:600; text-transform:uppercase; margin-bottom:var(--space-2); }
+.status-completed { background:var(--success-light); color:var(--success-dark); }
+.status-in-progress { background:var(--warning-light); color:var(--warning-dark); }
+.status-not-started { background:var(--gray-200); color:var(--gray-700); }
+.step-actions { display:flex; gap:var(--space-2); margin-left:var(--space-4); }
+.progress-stat { text-align:center; padding:var(--space-4); border-radius:var(--radius-lg); background:var(--bg-tertiary); }
+.progress-stat h2 { font-size:1.875rem; color:var(--primary-600); margin-bottom:var(--space-2); }
+.progress-stat p { font-size:0.875rem; color:var(--text-secondary); }
+.progress-circular { width:180px; height:180px; margin:0 auto var(--space-4); position:relative; }
+.symptom-log-item { padding:var(--space-4); border-radius:var(--radius-lg); background:var(--bg-tertiary); border-left:4px solid var(--primary-500); margin-bottom:var(--space-3); }
+.symptom-severity { display:inline-block; padding:var(--space-2) var(--space-3); border-radius:var(--radius-full); font-weight:600; font-size:0.875rem; }
+.severity-mild { background:var(--warning-light); color:var(--warning-dark); }
+.severity-moderate { background:var(--info-light); color:var(--info-dark); }
+.severity-severe { background:var(--danger-light); color:var(--danger-dark); }
+.note-item { padding:var(--space-4); border-radius:var(--radius-lg); background:var(--bg-tertiary); border-left:4px solid var(--primary-500); margin-bottom:var(--space-3); }
+.quick-action-btn { width:100%; margin-bottom:var(--space-3); display:flex; align-items:center; justify-content:center; gap:var(--space-2); }
+.treatment-group-title { font-size:1.125rem; font-weight:600; color:var(--text-primary); margin:var(--space-6) 0 var(--space-4); padding-left:var(--space-4); border-left:4px solid var(--primary-500); }
+.tracker-layout { display:grid; grid-template-columns:1fr 320px; gap:var(--space-6); }
+@media (max-width:1023px) { .tracker-layout { grid-template-columns:1fr; } .step-actions { flex-direction:column; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-6); padding-bottom:var(--space-6);">
+    <div class="mb-6">
+        <a href="{{ url_for('diagnosis.home') }}" class="btn btn-outline btn-sm">
+            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Home
+        </a>
+    </div>
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2">{{ plan.disease|default('Unknown Disease') }}</h1>
+        <p class="text-secondary">Treatment Progress Tracker</p>
+    </div>
+
+    <div class="tracker-layout">
+        <!-- Main Content -->
+        <div>
+            <!-- Progress Summary -->
+            <div class="tracker-card">
+                <div class="tracker-card-header">
+                    <h3><i class="fas fa-chart-pie" aria-hidden="true"></i>Overall Progress</h3>
+                </div>
+                <div class="tracker-card-body">
+                    <div style="display:grid; grid-template-columns:auto 1fr; gap:var(--space-6); align-items:center;">
+                        <div style="text-align:center;">
+                            <div class="progress-circular">
+                                <svg width="180" height="180" style="transform:rotate(-90deg);">
+                                    <circle cx="90" cy="90" r="80" fill="none" stroke="var(--border-color)" stroke-width="8"/>
+                                    <circle cx="90" cy="90" r="80" fill="none" stroke="var(--primary-600)" stroke-width="8"
+                                            stroke-dasharray="502.4" stroke-dashoffset="502.4" id="progressRing"
+                                            style="transition:stroke-dashoffset var(--transition-base);"/>
+                                </svg>
+                                <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center;">
+                                    <div style="font-size:2rem; font-weight:700; color:var(--primary-600);" id="progressPercent" aria-label="Progress percentage">0%</div>
+                                    <small class="text-secondary">Complete</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:var(--space-4);">
+                            <div class="progress-stat"><h2 id="completedSteps">0</h2><p>Completed</p></div>
+                            <div class="progress-stat"><h2 id="inProgressSteps">0</h2><p>In Progress</p></div>
+                            <div class="progress-stat"><h2 id="notStartedSteps">0</h2><p>Not Started</p></div>
+                        </div>
+                    </div>
+                    <div style="margin-top:var(--space-6); padding-top:var(--space-6); border-top:1px solid var(--border-color);">
+                        <h4 class="mb-4"><i class="fas fa-heartbeat mr-2" aria-hidden="true"></i>Symptom Tracking</h4>
+                        <div style="height:200px; position:relative;">
+                            <canvas id="symptomChart"></canvas>
+                        </div>
+                        <div class="text-center mt-4">
+                            <div id="symptomImprovementBox" style="display:none;">
+                                <h5 class="mb-2">Symptom Improvement</h5>
+                                <span id="improvementBadge" class="badge badge-success" style="padding:var(--space-2) var(--space-3); font-size:1rem;">Improving</span>
+                            </div>
+                            <div id="noSymptomDataBox">
+                                <p class="text-secondary">Not enough symptom data to show improvement</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Treatment Steps -->
+            <div class="tracker-card">
+                <div class="tracker-card-header">
+                    <h3><i class="fas fa-tasks" aria-hidden="true"></i>Treatment Steps</h3>
+                </div>
+                <div class="tracker-card-body" id="treatmentStepsContainer">
+                    <p class="text-secondary">Loading treatment steps...</p>
+                </div>
+            </div>
+
+            <!-- Symptom Log -->
+            <div class="tracker-card">
+                <div class="tracker-card-header">
+                    <h3><i class="fas fa-notes-medical" aria-hidden="true"></i>Symptom Log</h3>
+                </div>
+                <div class="tracker-card-body">
+                    <div id="symptomLogContent" class="text-center" style="padding:var(--space-8) var(--space-4);">
+                        <i class="fas fa-clipboard-list" style="font-size:3rem; color:var(--text-muted); display:block; margin-bottom:var(--space-4);" aria-hidden="true"></i>
+                        <p class="text-secondary">No symptom logs recorded yet.</p>
+                        <button class="btn btn-primary mt-3" id="log-symptom-btn"><i class="fas fa-plus mr-2" aria-hidden="true"></i>Add Symptom Log</button>
+                    </div>
+                    <div id="logSymptomFormContainer" style="display:none; padding:var(--space-4); background:var(--bg-tertiary); border-radius:var(--radius-lg); margin-bottom:var(--space-4);">
+                        <h5 class="mb-4">Log New Symptom</h5>
+                        <form id="logSymptomForm" style="display:flex; flex-direction:column; gap:var(--space-3);">
+                            <div class="form-group"><label class="form-label">Symptom Name</label><input type="text" id="symptomName" class="form-input" placeholder="e.g., Headache, Fever" required></div>
+                            <div class="form-group">
+                                <label class="form-label">Severity (1-10)</label>
+                                <input type="range" id="symptomSeverity" min="1" max="10" value="5" style="width:100%; cursor:pointer; accent-color:var(--primary-600);">
+                                <small class="text-secondary" id="severityDisplay">Severity: 5/10</small>
+                            </div>
+                            <div class="form-group"><label class="form-label">Notes (optional)</label><textarea id="symptomNotes" class="form-textarea" rows="3" placeholder="Any additional notes..."></textarea></div>
+                            <div class="flex gap-3"><button type="submit" class="btn btn-primary" style="flex:1;">Save Log</button><button type="button" class="btn btn-outline" id="cancelLogBtn" style="flex:1;">Cancel</button></div>
+                        </form>
+                    </div>
+                    <div id="symptomLogsContainer" style="display:none;"></div>
+                </div>
+            </div>
+
+            <!-- Notes -->
+            <div class="tracker-card">
+                <div class="tracker-card-header">
+                    <h3><i class="fas fa-sticky-note" aria-hidden="true"></i>Treatment Notes</h3>
+                </div>
+                <div class="tracker-card-body">
+                    <div id="notesContent" class="text-center" style="padding:var(--space-8) var(--space-4);">
+                        <i class="fas fa-sticky-note" style="font-size:3rem; color:var(--text-muted); display:block; margin-bottom:var(--space-4);" aria-hidden="true"></i>
+                        <p class="text-secondary">No notes added yet.</p>
+                        <button class="btn btn-primary mt-3" id="add-note-btn"><i class="fas fa-plus mr-2" aria-hidden="true"></i>Add Note</button>
+                    </div>
+                    <div id="addNoteFormContainer" style="display:none; padding:var(--space-4); background:var(--bg-tertiary); border-radius:var(--radius-lg); margin-bottom:var(--space-4);">
+                        <h5 class="mb-4">Add New Note</h5>
+                        <form id="addNoteForm" style="display:flex; flex-direction:column; gap:var(--space-3);">
+                            <div class="form-group"><label class="form-label">Note Content</label><textarea id="noteContent" class="form-textarea" rows="4" placeholder="Write your note here..." required></textarea></div>
+                            <div class="flex gap-3"><button type="submit" class="btn btn-primary" style="flex:1;">Save Note</button><button type="button" class="btn btn-outline" id="cancelNoteBtn" style="flex:1;">Cancel</button></div>
+                        </form>
+                    </div>
+                    <div id="notesContainer" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div>
+            <div class="tracker-card">
+                <div class="tracker-card-header"><h3><i class="fas fa-info-circle" aria-hidden="true"></i>Plan Status</h3></div>
+                <div class="tracker-card-body text-center">
+                    <div class="mb-6"><span id="statusBadge" class="badge badge-primary" style="padding:var(--space-3) var(--space-4); font-size:1rem;">Active</span></div>
+                    <div style="display:flex; justify-content:space-around; margin-bottom:var(--space-4); padding:var(--space-4) 0; border-bottom:1px solid var(--border-color);">
+                        <div><h5>Started</h5><p id="startDate" class="text-secondary">--</p></div>
+                        <div style="border-left:1px solid var(--border-color); padding-left:var(--space-4);"><h5>Days Active</h5><p id="daysActive" class="text-secondary">0</p></div>
+                    </div>
+                    <div style="padding:var(--space-4); background:var(--info-light); border-left:4px solid var(--info); border-radius:var(--radius-md); margin-bottom:var(--space-4);">
+                        <p id="nextStepBox" class="text-secondary" style="margin:0;">Next step: Loading...</p>
+                    </div>
+                    <a href="/disease-dashboard/{{ plan.disease }}" class="btn btn-outline w-full"><i class="fas fa-info-circle mr-2" aria-hidden="true"></i>Disease Information</a>
+                </div>
+            </div>
+
+            <div class="tracker-card">
+                <div class="tracker-card-header"><h3><i class="fas fa-bolt" aria-hidden="true"></i>Quick Actions</h3></div>
+                <div class="tracker-card-body">
+                    <button class="btn btn-primary quick-action-btn" id="quick-log-symptom"><i class="fas fa-notes-medical mr-2" aria-hidden="true"></i>Log Symptom</button>
+                    <button class="btn btn-secondary quick-action-btn" id="quick-add-note"><i class="fas fa-sticky-note mr-2" aria-hidden="true"></i>Add Note</button>
+                    <button class="btn btn-success quick-action-btn" id="update-treatment-btn"><i class="fas fa-check-circle mr-2" aria-hidden="true"></i>Update Progress</button>
+                    <a href="/doctors/recommend/{{ plan.disease }}" class="btn btn-warning quick-action-btn"><i class="fas fa-user-md mr-2" aria-hidden="true"></i>Find Doctors</a>
+                    <a href="/treatment-plan/{{ user_id }}/{{ plan_id }}/report.pdf" class="btn btn-outline quick-action-btn"><i class="fas fa-file-pdf mr-2" aria-hidden="true"></i>Download Report</a>
+                    <button class="btn btn-outline quick-action-btn" id="share-plan-btn"><i class="fas fa-share-alt mr-2" aria-hidden="true"></i>Share Plan</button>
+                </div>
+            </div>
+
+            <div class="tracker-card">
+                <div class="tracker-card-header"><h3><i class="fas fa-lightbulb" aria-hidden="true"></i>Health Tips</h3></div>
+                <div class="tracker-card-body" id="healthTipsContainer"><p class="text-secondary">Loading health tips...</p></div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+var PLAN_ID = '{{ plan_id }}';
+var USER_ID = '{{ user_id }}';  /* session-verified by the route, works for anonymous plans too */
+var DISEASE = '{{ plan.disease }}';
+var planData = {{ plan|tojson }};
+var symptomChart = null;
+var CSRF = (document.querySelector('meta[name="csrf-token"]') || {}).content || '';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadPlanData().then(function() {
+        renderTreatmentSteps();
+        renderProgressStats();
+        initializeEventListeners();
+    });
+});
+
+function loadPlanData() {
+    return fetch('/treatment-plan/' + USER_ID + '/' + PLAN_ID)
+        .then(function(r) { if (r.ok) return r.json(); throw new Error('Failed'); })
+        .then(function(d) { planData = d; })
+        .catch(function(e) { console.error('Error loading plan data:', e); });
+}
+
+function renderTreatmentSteps() {
+    var container = document.getElementById('treatmentStepsContainer');
+    if (!planData.treatment_steps || !planData.treatment_steps.length) {
+        container.innerHTML = '<p class="text-secondary">No treatment steps available.</p>';
+        return;
+    }
+    var grouped = groupTreatmentSteps(planData.treatment_steps);
+    var html = '';
+    grouped.forEach(function(group) {
+        html += '<div class="treatment-group-title">' + group.title + '</div>';
+        group.steps.forEach(function(step) {
+            var sc = step.status ? 'status-' + step.status.replace('_', '-') : 'status-not-started';
+            html += '<div class="treatment-step"><div class="step-icon ' + (step.type||'medication') + '"><i class="' + getStepIcon(step.type) + '"></i></div>' +
+                '<div class="step-content"><span class="step-status ' + sc + '">' + formatStatus(step.status) + '</span>' +
+                '<h5 style="margin:0 0 4px;">' + (step.name||'Unnamed Step') + '</h5>' +
+                '<p style="margin:0 0 4px; font-size:0.875rem;">' + (step.description||'') + '</p>' +
+                '<small class="text-secondary">Frequency: ' + (step.frequency||'N/A') + '</small></div>' +
+                '<div class="step-actions">' +
+                '<button class="btn btn-sm btn-success update-step-btn" data-step-id="' + step.id + '" data-status="completed"' + (step.status==='completed'?' disabled':'') + ' title="Mark completed"><i class="fas fa-check"></i></button>' +
+                '<button class="btn btn-sm btn-warning update-step-btn" data-step-id="' + step.id + '" data-status="in_progress"' + (step.status==='in_progress'?' disabled':'') + ' title="Mark in progress"><i class="fas fa-spinner"></i></button>' +
+                '<button class="btn btn-sm btn-outline update-step-btn" data-step-id="' + step.id + '" data-status="not_started"' + (step.status==='not_started'?' disabled':'') + ' title="Reset"><i class="fas fa-undo"></i></button>' +
+                '</div></div>';
+        });
+    });
+    container.innerHTML = html;
+    container.querySelectorAll('.update-step-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            updateStepStatus(this.getAttribute('data-step-id'), this.getAttribute('data-status'));
+        });
+    });
+}
+
+function renderProgressStats() {
+    if (!planData.treatment_steps) return;
+    var steps = planData.treatment_steps;
+    var completed = steps.filter(function(s){return s.status==='completed';}).length;
+    var inProgress = steps.filter(function(s){return s.status==='in_progress';}).length;
+    var notStarted = steps.filter(function(s){return s.status!=='completed'&&s.status!=='in_progress';}).length;
+    var pct = steps.length ? Math.round(completed/steps.length*100) : 0;
+    document.getElementById('completedSteps').textContent = completed;
+    document.getElementById('inProgressSteps').textContent = inProgress;
+    document.getElementById('notStartedSteps').textContent = notStarted;
+    document.getElementById('progressPercent').textContent = pct + '%';
+    var ring = document.getElementById('progressRing');
+    if (ring) ring.style.strokeDashoffset = 502.4 - (pct/100)*502.4;
+    document.getElementById('daysActive').textContent = planData.days_since_start || 0;
+    document.getElementById('startDate').textContent = formatDate(planData.created_at);
+    document.getElementById('nextStepBox').textContent = 'Next step: ' + getNextStep(steps);
+    if (planData.symptom_logs && planData.symptom_logs.length) {
+        initSymptomChart(planData.symptom_logs);
+        renderSymptomLogs();
+        document.getElementById('noSymptomDataBox').style.display = 'none';
+        document.getElementById('symptomImprovementBox').style.display = 'block';
+    }
+    if (planData.notes && planData.notes.length) renderNotes();
+    loadHealthTips();
+}
+
+function renderSymptomLogs() {
+    var container = document.getElementById('symptomLogsContainer');
+    var html = (planData.symptom_logs||[]).map(function(log) {
+        return '<div class="symptom-log-item"><div class="flex justify-between items-center mb-2"><h5 style="margin:0;">' + log.symptom + '</h5><span class="symptom-severity severity-' + getSeverityClass(log.severity) + '">' + log.severity + '/10</span></div><div class="flex justify-between items-center"><p class="text-secondary" style="margin:0;">' + (log.notes||'No additional notes') + '</p><small class="text-secondary">' + formatDate(log.date) + '</small></div></div>';
+    }).join('');
+    container.innerHTML = html;
+    container.style.display = 'block';
+    document.getElementById('symptomLogContent').style.display = 'none';
+}
+
+function renderNotes() {
+    var container = document.getElementById('notesContainer');
+    var html = (planData.notes||[]).map(function(note) {
+        return '<div class="note-item"><small class="text-secondary">' + formatDate(note.date) + '</small><p style="margin:4px 0 0;">' + note.content + '</p></div>';
+    }).join('');
+    container.innerHTML = html;
+    container.style.display = 'block';
+    document.getElementById('notesContent').style.display = 'none';
+}
+
+function updateStepStatus(stepId, status) {
+    fetch('/treatment-plan/'+USER_ID+'/'+PLAN_ID+'/step/'+stepId, {method:'PUT', headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF}, body:JSON.stringify({status:status})})
+        .then(function(r){ if(r.ok) return loadPlanData().then(function(){renderTreatmentSteps();renderProgressStats();}); })
+        .catch(function(e){ console.error(e); });
+}
+
+function logSymptom(name, severity, notes) {
+    fetch('/treatment-plan/'+USER_ID+'/'+PLAN_ID+'/symptom', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},
+        body:JSON.stringify({symptom:name, severity:parseInt(severity), notes:notes, date:new Date().toISOString()})})
+        .then(function(r){ if(r.ok) return loadPlanData().then(function(){renderProgressStats();document.getElementById('logSymptomForm').reset();document.getElementById('logSymptomFormContainer').style.display='none';}); })
+        .catch(function(e){ console.error(e); });
+}
+
+function addNote(content) {
+    fetch('/treatment-plan/'+USER_ID+'/'+PLAN_ID+'/note', {method:'POST', headers:{'Content-Type':'application/json','X-CSRF-Token':CSRF},
+        body:JSON.stringify({content:content, date:new Date().toISOString()})})
+        .then(function(r){ if(r.ok) return loadPlanData().then(function(){renderProgressStats();document.getElementById('addNoteForm').reset();document.getElementById('addNoteFormContainer').style.display='none';}); })
+        .catch(function(e){ console.error(e); });
+}
+
+function initSymptomChart(logs) {
+    var groups = {};
+    logs.forEach(function(l){ if(!groups[l.symptom]) groups[l.symptom]=[]; groups[l.symptom].push(l); });
+    var colors = ['var(--primary-600)','var(--success)','var(--warning)','var(--danger)','var(--info)'];
+    var datasets = Object.entries(groups).map(function(entry, i) {
+        var symptom=entry[0], sLogs=entry[1];
+        sLogs.sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+        return {label:symptom, data:sLogs.map(function(l){return {x:new Date(l.date),y:l.severity};}),
+            borderColor:colors[i%colors.length], backgroundColor:colors[i%colors.length]+'33', tension:0.1, fill:true};
+    });
+    var ctx = document.getElementById('symptomChart');
+    if (ctx && symptomChart) { symptomChart.destroy(); }
+    symptomChart = new Chart(ctx, {type:'scatter', data:{datasets:datasets},
+        options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:true,position:'top'}},
+            scales:{x:{type:'time',time:{unit:'day'}}, y:{beginAtZero:true,max:10}}}});
+}
+
+function loadHealthTips() {
+    fetch('/disease/'+encodeURIComponent(DISEASE))
+        .then(function(r){if(r.ok)return r.json();})
+        .then(function(info){
+            var tips = info && info.precautions;
+            var container = document.getElementById('healthTipsContainer');
+            if (!tips||!tips.length) { container.innerHTML='<p class="text-secondary">No health tips available</p>'; return; }
+            container.innerHTML = tips.slice(0,3).map(function(tip,i){
+                return '<div style="padding:var(--space-3);margin-bottom:var(--space-3);background:var(--bg-tertiary);border-left:4px solid var(--accent-500);border-radius:var(--radius-md);"><p style="margin:0;"><strong>Tip '+(i+1)+':</strong> '+tip+'</p></div>';
+            }).join('');
+        }).catch(function(){document.getElementById('healthTipsContainer').innerHTML='<p class="text-secondary">Failed to load tips</p>';});
+}
+
+function initializeEventListeners() {
+    document.getElementById('log-symptom-btn').addEventListener('click', function(){ document.getElementById('logSymptomFormContainer').style.display='block'; document.getElementById('symptomLogContent').style.display='none'; });
+    document.getElementById('quick-log-symptom').addEventListener('click', function(){ document.getElementById('logSymptomFormContainer').style.display='block'; document.getElementById('symptomLogContent').style.display='none'; });
+    document.getElementById('cancelLogBtn').addEventListener('click', function(){ document.getElementById('logSymptomFormContainer').style.display='none'; document.getElementById('symptomLogContent').style.display='block'; });
+    document.getElementById('logSymptomForm').addEventListener('submit', function(e){ e.preventDefault(); logSymptom(document.getElementById('symptomName').value, document.getElementById('symptomSeverity').value, document.getElementById('symptomNotes').value); });
+    document.getElementById('symptomSeverity').addEventListener('input', function(e){ document.getElementById('severityDisplay').textContent='Severity: '+e.target.value+'/10'; });
+    document.getElementById('add-note-btn').addEventListener('click', function(){ document.getElementById('addNoteFormContainer').style.display='block'; document.getElementById('notesContent').style.display='none'; });
+    document.getElementById('quick-add-note').addEventListener('click', function(){ document.getElementById('addNoteFormContainer').style.display='block'; document.getElementById('notesContent').style.display='none'; });
+    document.getElementById('cancelNoteBtn').addEventListener('click', function(){ document.getElementById('addNoteFormContainer').style.display='none'; document.getElementById('notesContent').style.display='block'; });
+    document.getElementById('addNoteForm').addEventListener('submit', function(e){ e.preventDefault(); addNote(document.getElementById('noteContent').value); });
+    document.getElementById('share-plan-btn').addEventListener('click', function(){
+        var txt = "I'm tracking my "+DISEASE+" treatment plan on Health Advisor!";
+        if (navigator.share) navigator.share({title:'Health Advisor',text:txt});
+    });
+    document.getElementById('update-treatment-btn').addEventListener('click', function(){ loadPlanData().then(function(){renderTreatmentSteps();renderProgressStats();}); });
+}
+
+function groupTreatmentSteps(steps) {
+    var types = {medication:{title:'Medications',steps:[]},diet:{title:'Dietary Changes',steps:[]},exercise:{title:'Exercise & Physical Activity',steps:[]},precaution:{title:'Precautions',steps:[]}};
+    steps.forEach(function(s){ var t=s.type||'medication'; if(types[t]) types[t].steps.push(s); });
+    return Object.values(types).filter(function(g){return g.steps.length>0;});
+}
+function getStepIcon(t) { return ({medication:'fas fa-pills',diet:'fas fa-utensils',exercise:'fas fa-running',precaution:'fas fa-shield-alt'})[t]||'fas fa-check'; }
+function formatStatus(s) { if(!s)return 'Not Started'; return s.replace('_',' ').split(' ').map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join(' '); }
+function formatDate(d) { if(!d)return '--'; return new Date(d).toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}); }
+function getSeverityClass(s) { return s<=3?'mild':(s<=6?'moderate':'severe'); }
+function getNextStep(steps) { if(!steps)return 'Complete your treatment'; var ns=steps.find(function(s){return s.status!=='completed'&&s.status!=='in_progress';}); return ns?ns.name:'All steps completed!'; }
+</script>
+{% endblock %}

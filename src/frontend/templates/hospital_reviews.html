@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% block title %}Reviews - {{ hospital.name }}{% endblock %}
+{% block meta_description %}Patient reviews for {{ hospital.name }} on Health Advisor.{% endblock %}
+
+{% block extra_head %}
+<style>
+.hospital-header { display:flex; justify-content:space-between; align-items:flex-start; gap:2rem; }
+.hospital-info { flex:1; }
+.hospital-name { margin:0 0 0.5rem 0; font-weight:700; font-size:1.75rem; }
+.hospital-meta { margin:0.5rem 0; color:var(--text-secondary); font-size:0.95rem; display:flex; align-items:center; gap:0.5rem; }
+.hospital-meta i { color:var(--primary-600); width:1rem; }
+.hospital-rating { text-align:center; min-width:120px; }
+.rating-number { font-size:2.5rem; font-weight:700; color:var(--accent-500); line-height:1; }
+.rating-stars { font-size:1.25rem; color:var(--accent-500); margin:0.5rem 0; display:flex; justify-content:center; gap:0.25rem; }
+.review-count { display:block; color:var(--text-secondary); font-size:0.875rem; margin-top:0.5rem; }
+.no-rating { font-size:2.5rem; color:var(--gray-300); }
+.star-picker { display:flex; gap:0.75rem; font-size:1.75rem; cursor:pointer; margin-bottom:1rem; }
+.star-picker i { color:var(--gray-300); transition:all 0.2s ease; }
+.star-picker i:hover { color:var(--accent-500); transform:scale(1.15); }
+.star-picker i.fas { color:var(--accent-500); }
+.no-reviews { padding:2rem; text-align:center; color:var(--text-muted); }
+.no-reviews i { font-size:2rem; color:var(--gray-300); margin-bottom:0.5rem; display:block; }
+.reviews-list { display:flex; flex-direction:column; }
+.review-item { padding:1.25rem; border-bottom:1px solid var(--border-color); }
+.review-item:last-child { border-bottom:none; }
+.review-item:hover { background-color:var(--bg-tertiary); }
+.review-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem; gap:1rem; flex-wrap:wrap; }
+.reviewer-name { font-weight:600; }
+.review-stars { display:flex; gap:0.25rem; color:var(--accent-500); font-size:0.875rem; }
+.review-date { color:var(--text-muted); font-size:0.875rem; }
+.review-text { margin:0; color:var(--text-secondary); line-height:1.6; }
+@media (max-width:768px) { .hospital-header { flex-direction:column; } .review-header { flex-direction:column; align-items:flex-start; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12); max-width:800px;">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="alert alert-{{ category }} mb-4" role="alert"><div class="alert-content">{{ message }}</div></div>
+        {% endfor %}
+    {% endwith %}
+
+    <div class="mb-6">
+        <a href="/doctors/search" class="btn btn-outline btn-sm">
+            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Back to Search
+        </a>
+    </div>
+
+    <div class="card shadow-md mb-6">
+        <div class="card-body">
+            <div class="hospital-header">
+                <div class="hospital-info">
+                    <h2 class="hospital-name">{{ hospital.name }}</h2>
+                    <p class="hospital-meta"><i class="fas fa-map-marker-alt" aria-hidden="true"></i>{{ hospital.get("city", "") }}{% if hospital.get("state") %}, {{ hospital.state }}{% endif %}</p>
+                    {% if hospital.get("specialties") %}
+                    <p class="hospital-meta"><i class="fas fa-stethoscope" aria-hidden="true"></i>{{ hospital.specialties[:3] | join(", ") }}{% if hospital.specialties|length > 3 %} +{{ hospital.specialties|length - 3 }} more{% endif %}</p>
+                    {% endif %}
+                </div>
+                <div class="hospital-rating">
+                    {% if avg_info %}
+                    <div class="rating-number">{{ avg_info.avg }}</div>
+                    <div class="rating-stars">{% for i in range(1, 6) %}{% if i <= avg_info.avg|int %}<i class="fas fa-star" aria-hidden="true"></i>{% elif i - 0.5 <= avg_info.avg %}<i class="fas fa-star-half-alt" aria-hidden="true"></i>{% else %}<i class="far fa-star" aria-hidden="true"></i>{% endif %}{% endfor %}</div>
+                    <small class="review-count">{{ avg_info.count }} review{{ "s" if avg_info.count != 1 }}</small>
+                    {% else %}
+                    <div class="no-rating"><i class="far fa-star" aria-hidden="true"></i></div>
+                    <small class="text-muted">No reviews yet</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if session.get("user_id") %}
+    <div class="card shadow-md mb-6">
+        <div class="card-header" style="background:var(--primary-600); color:white;">
+            <h5 style="margin:0;"><i class="fas fa-pen mr-2" aria-hidden="true"></i>Write a Review</h5>
+        </div>
+        <div class="card-body">
+            <div class="form-group mb-4">
+                <label class="form-label">Your Rating <span style="color:var(--danger);">*</span></label>
+                <div id="starRating" class="star-picker" role="group" aria-label="Star rating">
+                    <i class="far fa-star" data-val="1" role="button" tabindex="0" aria-label="1 star"></i>
+                    <i class="far fa-star" data-val="2" role="button" tabindex="0" aria-label="2 stars"></i>
+                    <i class="far fa-star" data-val="3" role="button" tabindex="0" aria-label="3 stars"></i>
+                    <i class="far fa-star" data-val="4" role="button" tabindex="0" aria-label="4 stars"></i>
+                    <i class="far fa-star" data-val="5" role="button" tabindex="0" aria-label="5 stars"></i>
+                </div>
+                <input type="hidden" id="selectedRating" value="0">
+            </div>
+            <div class="form-group mb-4">
+                <label for="reviewText" class="form-label">Your Review</label>
+                <textarea id="reviewText" class="form-textarea" rows="4" placeholder="Share your experience..."></textarea>
+            </div>
+            <button id="submitReview" class="btn btn-primary"><i class="fas fa-paper-plane mr-2" aria-hidden="true"></i>Submit Review</button>
+            <div id="reviewMsg" class="mt-3" role="status" aria-live="polite"></div>
+        </div>
+    </div>
+    {% else %}
+    <div class="alert alert-info mb-6">
+        <div class="alert-icon"><i class="fas fa-info-circle" aria-hidden="true"></i></div>
+        <div class="alert-content"><a href="{{ url_for("auth.login") }}">Log in</a> to write a review.</div>
+    </div>
+    {% endif %}
+
+    <div class="card shadow-md">
+        <div class="card-header">
+            <h5 style="margin:0;"><i class="fas fa-comments mr-2" aria-hidden="true"></i>Patient Reviews ({{ reviews|length }})</h5>
+        </div>
+        <div class="card-body" style="padding:0;">
+            {% if not reviews %}
+            <div class="no-reviews"><i class="far fa-comment-dots" aria-hidden="true"></i><p>No reviews yet. Be the first!</p></div>
+            {% else %}
+            <div class="reviews-list">
+                {% for r in reviews %}
+                <div class="review-item">
+                    <div class="review-header">
+                        <strong class="reviewer-name">{{ r.username }}</strong>
+                        <div class="review-stars">{% for i in range(1, 6) %}<i class="fa{% if i <= r.rating %}s{% else %}r{% endif %} fa-star" aria-hidden="true"></i>{% endfor %}</div>
+                        <small class="review-date">{{ r.created_at.strftime("%d %b %Y") if r.created_at else "" }}</small>
+                    </div>
+                    {% if r.review_text %}<p class="review-text">{{ r.review_text }}</p>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function ReviewForm() {
+    var hospitalId = {{ hospital_id | tojson }};
+    var ratingInput = document.getElementById("selectedRating");
+    if (!ratingInput) return;
+    function highlightStars(n) {
+        document.querySelectorAll("#starRating i").forEach(function(s) { s.className = +s.dataset.val <= n ? "fas fa-star" : "far fa-star"; });
+    }
+    document.querySelectorAll("#starRating i").forEach(function(star) {
+        star.addEventListener("mouseover", function() { highlightStars(+this.dataset.val); });
+        star.addEventListener("click", function() { ratingInput.value = this.dataset.val; highlightStars(+this.dataset.val); });
+        star.addEventListener("keypress", function(e) { if (e.key === "Enter") { ratingInput.value = this.dataset.val; highlightStars(+this.dataset.val); } });
+    });
+    document.getElementById("starRating").addEventListener("mouseleave", function() { highlightStars(+ratingInput.value); });
+    document.getElementById("submitReview").addEventListener("click", function() {
+        var rating = +ratingInput.value, text = document.getElementById("reviewText").value.trim(), msg = document.getElementById("reviewMsg");
+        if (!rating) { msg.innerHTML = "<div class="alert alert-danger"><div class="alert-content">Please select a rating.</div></div>"; return; }
+        var btn = this, orig = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = "<i class="fas fa-spinner fa-spin mr-2"></i>Submitting...";
+        fetch("/api/doctors/" + hospitalId + "/reviews", { method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify({rating: rating, review_text: text}) })
+        .then(function(r) { return r.json().then(function(d) { return {ok: r.ok, data: d}; }); })
+        .then(function(r) {
+            if (r.ok) { msg.innerHTML = "<div class="alert alert-success"><div class="alert-content">Review submitted! Reload to see it.</div></div>"; document.getElementById("reviewText").value = ""; ratingInput.value = "0"; highlightStars(0); }
+            else { msg.innerHTML = "<div class="alert alert-danger"><div class="alert-content">" + (r.data.error || "Failed to submit.") + "</div></div>"; }
+        }).catch(function() { msg.innerHTML = "<div class="alert alert-danger"><div class="alert-content">Error. Please try again.</div></div>"; })
+        .finally(function() { btn.disabled = false; btn.innerHTML = orig; });
+    });
+})();
+</script>
+{% endblock %}

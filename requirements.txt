@@ -1,0 +1,42 @@
+# Core web framework
+flask==2.3.3
+flask-cors==4.0.0
+werkzeug==2.3.7
+python-dotenv==1.0.0
+requests==2.31.0
+
+# ML / data
+numpy>=1.24
+pandas>=2.1
+scikit-learn>=1.3
+torch>=2.0
+torchvision
+transformers>=4.49.0
+
+# Medical imaging (X-ray analysis)
+torchxrayvision
+grad-cam
+scikit-image
+matplotlib
+
+# Lab report parsing (PDF / OCR)
+PyMuPDF>=1.23
+pytesseract>=0.3.10
+Pillow>=10.0
+pdf2image>=1.16
+
+# Database
+psycopg2-binary>=2.9
+
+# Report generation
+reportlab>=4.2
+
+# Statistical significance tests (paper scripts)
+scipy>=1.11
+statsmodels>=0.14
+
+# Paper generation
+python-docx>=1.1
+
+# Tests
+pytest>=7.4

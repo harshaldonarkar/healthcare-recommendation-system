@@ -1,0 +1,257 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block meta_description %}Health Advisor — AI-powered symptom analysis. Describe your symptoms and get instant, personalized health insights covering 102+ diseases.{% endblock %}
+
+{% block content %}
+    <!-- Hero -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content reveal">
+                <div class="flex justify-center mb-4">
+                    <div class="badge badge-primary" style="display:inline-flex; align-items:center; gap:6px;">
+                        <span class="badge-dot pulse" style="width:6px;height:6px;border-radius:50%;background:var(--primary-600);display:inline-block;"></span>
+                        Research-Grade AI · DDXPlus · DenseNet-121
+                    </div>
+                </div>
+                <h1 class="hero-title">Your Personal<br>Health Advisor</h1>
+                <p class="hero-subtitle">
+                    Symptom analysis · Lab result interpretation · Chest X-ray screening —
+                    powered by transformer models trained on 1M+ clinical cases.
+                </p>
+                <div style="display:flex; justify-content:center;">
+                    <a href="#analyzeForm" class="btn btn-primary btn-lg">
+                        <i class="fas fa-stethoscope"></i>Analyze Symptoms
+                    </a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Stats bar -->
+    <div class="container">
+        <div class="stats-bar reveal reveal-delay-1">
+            <div class="stat-item"><div class="stat-number">102+</div><div class="stat-label">Diseases</div></div>
+            <div class="stat-item"><div class="stat-number">14</div><div class="stat-label">X-Ray Pathologies</div></div>
+            <div class="stat-item"><div class="stat-number">98.5%</div><div class="stat-label">DDX Accuracy</div></div>
+            <div class="stat-item"><div class="stat-number">1M+</div><div class="stat-label">Training Cases</div></div>
+            <div class="stat-item"><div class="stat-number">29</div><div class="stat-label">Lab Tests</div></div>
+            <div class="stat-item"><div class="stat-number">24/7</div><div class="stat-label">Available</div></div>
+        </div>
+    </div>
+
+    <!-- Main Analysis Card (Overlapping Hero) -->
+    <div class="container" style="margin-top: -80px; position: relative; z-index: 10;">
+        <div class="card card-glass mb-8" style="max-width: 900px; margin: 0 auto;">
+            <div class="card-body">
+                <h2 class="text-2xl font-bold mb-2">
+                    <i class="fas fa-stethoscope mr-2" aria-hidden="true"></i>Symptom Analysis
+                </h2>
+                <p class="text-secondary mb-6">
+                    Describe your symptoms to get a personalized health assessment powered by AI analysis.
+                </p>
+
+                {% if error %}
+                <div class="alert alert-danger mb-6" role="alert">
+                    <div class="alert-icon"><i class="fas fa-exclamation-circle" aria-hidden="true"></i></div>
+                    <div class="alert-content">{{ error }}</div>
+                </div>
+                {% endif %}
+
+                <form action="/analyze" method="post" id="analyzeForm" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <!-- Emergency warning (shown by JS if emergency symptoms detected) -->
+                    <div id="emergencyFormWarning" class="alert alert-danger mb-4" style="display:none;" role="alert" aria-live="assertive">
+                        <div class="alert-icon"><i class="fas fa-ambulance" aria-hidden="true"></i></div>
+                        <div class="alert-content">
+                            <strong id="emergencyFormText">Your symptoms may require emergency care.</strong>
+                            <span> Call emergency services (112/911) immediately instead of using this tool.</span>
+                        </div>
+                    </div>
+
+                    <!-- Symptom Textarea -->
+                    <div class="form-group mb-4">
+                        <label for="symptoms" class="form-label">Describe your symptoms:</label>
+                        <textarea
+                            class="form-textarea"
+                            id="symptoms"
+                            name="symptoms"
+                            placeholder="Example: I've been experiencing high fever, cough, and shortness of breath for the past two days"
+                            required
+                            aria-required="true"
+                            aria-describedby="symptomHelp"
+                        ></textarea>
+                        <div class="form-help" id="symptomHelp">Be as detailed as possible for more accurate results. Separate multiple symptoms with commas.</div>
+                    </div>
+
+                    <!-- Severity Selector -->
+                    <div class="form-group mb-6">
+                        <label class="form-label">How severe are your symptoms?</label>
+                        <div class="severity-selector" id="severitySelector" role="group" aria-label="Symptom severity">
+                            <button type="button" class="severity-option" data-severity="mild" aria-pressed="false">
+                                <span class="severity-icon" aria-hidden="true">😌</span>
+                                <span class="severity-label">Mild</span>
+                                <span class="severity-desc">Barely noticeable</span>
+                            </button>
+                            <button type="button" class="severity-option" data-severity="moderate" aria-pressed="false">
+                                <span class="severity-icon" aria-hidden="true">😟</span>
+                                <span class="severity-label">Moderate</span>
+                                <span class="severity-desc">Affecting daily life</span>
+                            </button>
+                            <button type="button" class="severity-option" data-severity="severe" aria-pressed="false">
+                                <span class="severity-icon" aria-hidden="true">😰</span>
+                                <span class="severity-label">Severe</span>
+                                <span class="severity-desc">Debilitating</span>
+                            </button>
+                        </div>
+                        <input type="hidden" name="severity" id="severityInput" value="">
+                    </div>
+
+                    <!-- Optional Vitals -->
+                    <details class="form-group mb-4">
+                        <summary class="form-label" style="cursor:pointer; user-select:none;">
+                            <i class="fas fa-ruler-combined mr-2" aria-hidden="true"></i>Optional Vitals
+                            <span class="text-muted text-sm ml-2">(helps the AI give better context)</span>
+                        </summary>
+                        <div class="grid grid-cols-4 gap-4 mt-3">
+                            <div>
+                                <label class="form-label text-sm" for="vitals_age">Age</label>
+                                <input type="number" id="vitals_age" name="vitals_age" class="form-input" placeholder="Years" min="1" max="120">
+                            </div>
+                            <div>
+                                <label class="form-label text-sm" for="vitals_weight">Weight (kg)</label>
+                                <input type="number" id="vitals_weight" name="vitals_weight" class="form-input" placeholder="kg" min="1" max="500">
+                            </div>
+                            <div>
+                                <label class="form-label text-sm" for="vitals_height">Height (cm)</label>
+                                <input type="number" id="vitals_height" name="vitals_height" class="form-input" placeholder="cm" min="30" max="300">
+                            </div>
+                            <div>
+                                <label class="form-label text-sm" for="vitals_temp">Temp (°C)</label>
+                                <input type="number" id="vitals_temp" name="vitals_temp" class="form-input" placeholder="37.0" step="0.1" min="30" max="45">
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- AI Enhancement Toggle -->
+                    <div class="form-checkbox mb-6">
+                        <input type="checkbox" id="use_llm" name="use_llm" checked>
+                        <label for="use_llm">Get simplified AI explanation of results</label>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="flex gap-4">
+                        <button type="submit" class="btn btn-primary btn-lg flex-grow" id="analyzeBtn">
+                            <i class="fas fa-search-plus mr-2" aria-hidden="true"></i>Analyze Symptoms
+                        </button>
+                        <button type="button" id="demoModeBtn" class="btn btn-outline btn-lg">
+                            <i class="fas fa-flask mr-2" aria-hidden="true"></i>Try Demo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Features grid -->
+    <section class="py-12" aria-labelledby="featuresHeading">
+        <div class="container">
+            <div class="text-center mb-8 reveal">
+                <h2 id="featuresHeading" class="section-title mb-2">Everything in one place</h2>
+                <p class="text-secondary">Clinical-grade AI tools for symptom analysis, imaging, and lab results</p>
+            </div>
+            <div class="feature-grid reveal reveal-delay-1">
+                <a href="/" class="feature-card" style="text-decoration:none; color:inherit;">
+                    <div class="feature-icon feature-icon-blue"><i class="fas fa-stethoscope"></i></div>
+                    <h3>Symptom Analysis</h3>
+                    <p>BERT + DDXPlus differential diagnosis across 102+ diseases</p>
+                </a>
+                <a href="/xray-analysis" class="feature-card" style="text-decoration:none; color:inherit;">
+                    <div class="feature-icon feature-icon-purple"><i class="fas fa-x-ray"></i></div>
+                    <h3>X-Ray AI <span class="nav-new-badge" style="vertical-align:middle;">NEW</span></h3>
+                    <p>DenseNet-121 detects 14 chest pathologies including pneumonia</p>
+                </a>
+                <a href="/lab-analysis" class="feature-card" style="text-decoration:none; color:inherit;">
+                    <div class="feature-icon feature-icon-green"><i class="fas fa-flask"></i></div>
+                    <h3>Lab Analysis</h3>
+                    <p>Upload reports or enter values — 29 tests interpreted instantly</p>
+                </a>
+                <a href="/my-treatment-plans" class="feature-card" style="text-decoration:none; color:inherit;">
+                    <div class="feature-icon feature-icon-orange"><i class="fas fa-clipboard-list"></i></div>
+                    <h3>Treatment Plans</h3>
+                    <p>Track symptoms, medications, and progress over time</p>
+                </a>
+                <a href="/appointments" class="feature-card" style="text-decoration:none; color:inherit;">
+                    <div class="feature-icon feature-icon-pink"><i class="fas fa-calendar-check"></i></div>
+                    <h3>Appointments</h3>
+                    <p>Schedule and manage doctor appointments with reminders</p>
+                </a>
+                <a href="/doctors/search" class="feature-card" style="text-decoration:none; color:inherit;">
+                    <div class="feature-icon feature-icon-teal"><i class="fas fa-hospital"></i></div>
+                    <h3>Hospital Search</h3>
+                    <p>Find nearby hospitals and specialists in your area</p>
+                </a>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="py-16 bg-gray-50" aria-labelledby="howItWorksHeading">
+        <div class="container max-w-4xl">
+            <div class="text-center mb-12 reveal">
+                <h2 id="howItWorksHeading" class="section-title mb-4">How It Works</h2>
+                <p class="text-secondary text-lg">Simple steps to get your health insights</p>
+            </div>
+
+            <div class="grid grid-cols-4 gap-8 reveal reveal-delay-1">
+                <div class="text-center">
+                    <div class="step-indicator mb-4" aria-hidden="true">1</div>
+                    <h3 class="font-bold mb-2">Enter Symptoms</h3>
+                    <p class="text-secondary text-sm">Describe your symptoms in natural language detail</p>
+                </div>
+                <div class="text-center">
+                    <div class="step-indicator mb-4" aria-hidden="true">2</div>
+                    <h3 class="font-bold mb-2">AI Analysis</h3>
+                    <p class="text-secondary text-sm">Our BERT model analyses your input against 102+ diseases</p>
+                </div>
+                <div class="text-center">
+                    <div class="step-indicator mb-4" aria-hidden="true">3</div>
+                    <h3 class="font-bold mb-2">Get Results</h3>
+                    <p class="text-secondary text-sm">Receive potential diagnoses with confidence scores instantly</p>
+                </div>
+                <div class="text-center">
+                    <div class="step-indicator mb-4" aria-hidden="true">4</div>
+                    <h3 class="font-bold mb-2">Follow Plan</h3>
+                    <p class="text-secondary text-sm">Track treatments, follow diet advice, and consult a doctor</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Info/Disclaimer Card -->
+    <section class="py-16" aria-labelledby="aboutHeading">
+        <div class="container max-w-4xl">
+            <div class="card reveal">
+                <div class="card-body">
+                    <h2 id="aboutHeading" class="section-title mb-8">
+                        <i class="fas fa-info-circle mr-2" aria-hidden="true"></i>About Health Advisor
+                    </h2>
+
+                    <div class="grid grid-cols-2 gap-8">
+                        <div>
+                            <h3 class="text-xl font-bold mb-4">Our Approach</h3>
+                            <p class="text-secondary mb-4">Health Advisor uses advanced machine learning (BERT) and natural language processing to analyse your symptoms and provide potential diagnoses with personalised recommendations covering medicines, diet, exercise, and precautions.</p>
+                            <p class="text-secondary">Our system is trained on a comprehensive medical database covering 102+ common conditions.</p>
+                        </div>
+                        <div>
+                            <h3 class="text-xl font-bold mb-4">
+                                <i class="fas fa-exclamation-triangle mr-2 text-warning" aria-hidden="true"></i>Important Disclaimer
+                            </h3>
+                            <p class="text-secondary mb-4">This tool is for <strong>informational purposes only</strong> and is <strong>not a substitute</strong> for professional medical advice, diagnosis, or treatment.</p>
+                            <p class="text-secondary">Always seek the advice of your physician or other qualified health provider with any questions you may have regarding a medical condition. <strong>In an emergency, call 112 or 911 immediately.</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+{% endblock %}

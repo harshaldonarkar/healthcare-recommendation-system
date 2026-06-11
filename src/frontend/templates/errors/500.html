@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Server Error{% endblock %}
+{% block content %}
+<section class="py-16" style="min-height: 60vh; display:flex; align-items:center;">
+    <div class="container max-w-4xl text-center">
+        <div style="font-size:6rem; font-weight:800; color:var(--danger-light); line-height:1; margin-bottom:var(--space-4);">500</div>
+        <h1 class="text-3xl font-bold mb-4">Something Went Wrong</h1>
+        <p class="text-secondary text-lg mb-4">An internal server error occurred. We've been notified and are working to fix it.</p>
+        <p class="text-muted mb-8">Please try again in a moment, or start a new symptom analysis.</p>
+        <div class="flex gap-4 justify-center flex-wrap">
+            <a href="/" class="btn btn-primary btn-lg">
+                <i class="fas fa-home mr-2" aria-hidden="true"></i>Go to Home
+            </a>
+            <a href="javascript:history.back()" class="btn btn-outline btn-lg">
+                <i class="fas fa-arrow-left mr-2" aria-hidden="true"></i>Go Back
+            </a>
+        </div>
+    </div>
+</section>
+{% endblock %}

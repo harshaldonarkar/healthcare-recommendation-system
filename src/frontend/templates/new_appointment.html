@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Book Appointment{% endblock %}
+{% block meta_description %}Book a new healthcare appointment with Health Advisor.{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <div style="max-width:600px; margin:0 auto;">
+        <a href="/appointments" class="btn btn-outline btn-sm mb-6">
+            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Back to Appointments
+        </a>
+
+        <div class="card shadow-lg">
+            <div class="card-header bg-gradient-primary text-white">
+                <h2 class="text-2xl font-bold"><i class="fas fa-calendar-plus mr-2" aria-hidden="true"></i>Book an Appointment</h2>
+            </div>
+            <div class="card-body">
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} mb-4" role="alert">
+                            <div class="alert-icon"><i class="fas fa-check-circle" aria-hidden="true"></i></div>
+                            <div class="alert-content">{{ message }}</div>
+                        </div>
+                    {% endfor %}
+                {% endwith %}
+
+                <form method="POST" action="/appointments/new">
+                    <div class="form-group mb-4">
+                        <label class="form-label" for="provider_name">Provider / Hospital Name <span style="color:var(--danger);">*</span></label>
+                        <input type="text" id="provider_name" name="provider_name" class="form-input"
+                               placeholder="e.g., City General Hospital" required aria-required="true">
+                        <div class="form-help">Enter the name of the hospital or healthcare facility</div>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label class="form-label" for="appointment_type">Appointment Type</label>
+                        <select id="appointment_type" name="appointment_type" class="form-select">
+                            {% for t in appointment_types %}
+                                <option value="{{ t }}">{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label class="form-label" for="appointment_date">Date &amp; Time <span style="color:var(--danger);">*</span></label>
+                        <input type="datetime-local" id="appointment_date" name="appointment_date" class="form-input"
+                               min="{{ now }}" required aria-required="true">
+                        <div class="form-help">Select a date and time for your appointment</div>
+                    </div>
+
+                    <div class="form-group mb-4">
+                        <label class="form-label" for="location">Location / Address</label>
+                        <input type="text" id="location" name="location" class="form-input"
+                               placeholder="e.g., 123 Main Street, Mumbai">
+                        <div class="form-help">Enter the address of the healthcare facility</div>
+                    </div>
+
+                    <div class="form-group mb-6">
+                        <label class="form-label" for="notes">Notes</label>
+                        <textarea id="notes" name="notes" class="form-textarea" rows="4"
+                                  placeholder="Reason for visit, documents to bring, special requirements, etc."></textarea>
+                        <div class="form-help">Add any additional details about your appointment</div>
+                    </div>
+
+                    <div class="flex gap-3">
+                        <button type="submit" class="btn btn-primary btn-lg" style="flex:1;">
+                            <i class="fas fa-calendar-check mr-2" aria-hidden="true"></i>Book Appointment
+                        </button>
+                        <a href="/appointments" class="btn btn-outline btn-lg" style="flex:1;">
+                            <i class="fas fa-times mr-2" aria-hidden="true"></i>Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="alert alert-info mt-6">
+            <div class="alert-icon"><i class="fas fa-lightbulb" aria-hidden="true"></i></div>
+            <div class="alert-content"><strong>Tip:</strong> Arrive at least 15 minutes early and bring any relevant medical documents.</div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function() {
+    var dtInput = document.querySelector('input[name="appointment_date"]');
+    if (dtInput) {
+        var now = new Date();
+        now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+        dtInput.min = now.toISOString().slice(0, 16);
+    }
+})();
+</script>
+{% endblock %}

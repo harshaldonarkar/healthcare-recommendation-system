@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+{% block title %}Analysis Results{% endblock %}
+{% block meta_description %}Your personalised health analysis results based on reported symptoms.{% endblock %}
+{% block extra_head %}<meta name="robots" content="noindex, nofollow">{% endblock %}
+
+{% block content %}
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="container">
+            <div class="breadcrumb">
+                <a href="{{ url_for('diagnosis.home') }}" style="color: rgba(255,255,255,0.85); text-decoration: none;">
+                    <i class="fas fa-arrow-left" aria-hidden="true"></i> New Analysis
+                </a>
+            </div>
+            <h1><i class="fas fa-chart-bar" aria-hidden="true"></i>&nbsp;Analysis Results</h1>
+            <p style="margin: 0; opacity: 0.95;">Based on your reported symptoms</p>
+            {% if symptoms %}
+            <div class="symptoms-chips" aria-label="Reported symptoms">
+                {% set symptom_list = symptoms.split(',') if symptoms is string else symptoms %}
+                {% for symptom in symptom_list[:5] %}
+                    {% if symptom.strip() %}
+                    <div class="chip">
+                        <i class="fas fa-check-circle" aria-hidden="true"></i>
+                        {{ symptom.strip() }}
+                    </div>
+                    {% endif %}
+                {% endfor %}
+                {% if symptom_list|length > 5 %}
+                <div class="chip">
+                    <i class="fas fa-plus" aria-hidden="true"></i>
+                    +{{ symptom_list|length - 5 }} more
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container results-container">
+
+        <!-- AI Explanation -->
+        {% if simplified_explanation %}
+        <div class="card ai-explanation-card" role="region" aria-label="AI analysis overview">
+            <div class="card-header">
+                <i class="fas fa-robot" aria-hidden="true"></i>
+                AI Analysis Overview
+            </div>
+            <div class="card-body">
+                <p>{{ simplified_explanation }}</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Two Column Layout -->
+        <div class="two-column-layout">
+            <!-- Left Column: Main Predictions -->
+            <div>
+                <!-- Primary Prediction Card -->
+                <div class="primary-prediction" role="region" aria-label="Primary diagnosis">
+                    <div class="card-header">
+                        <h2><i class="fas fa-stethoscope" aria-hidden="true"></i>&nbsp;Primary Diagnosis</h2>
+                        <a href="{{ url_for('diagnosis.disease_dashboard', disease_name=primary_prediction) }}"
+                           style="color: white; text-decoration: none; display: flex; align-items: center; gap: var(--space-2); font-size: 0.9rem;"
+                           aria-label="View detailed information about {{ primary_prediction }}">
+                            <i class="fas fa-info-circle" aria-hidden="true"></i> Details
+                        </a>
+                    </div>
+                    <div class="card-body">
+                        <div class="primary-badge">Primary Diagnosis</div>
+                        <h3 class="disease-name">{{ primary_prediction }}</h3>
+
+                        <!-- Confidence Gauge -->
+                        <div class="confidence-gauge" role="meter"
+                             aria-valuenow="{{ "%.0f"|format(predictions[0].confidence) }}"
+                             aria-valuemin="0" aria-valuemax="100"
+                             aria-label="Confidence: {{ "%.0f"|format(predictions[0].confidence) }}%">
+                            {% set confidence = predictions[0].confidence %}
+                            {% if confidence >= 80 %}
+                                {% set gauge_color = "#10b981" %}
+                            {% elif confidence >= 60 %}
+                                {% set gauge_color = "#3b82f6" %}
+                            {% elif confidence >= 30 %}
+                                {% set gauge_color = "#f59e0b" %}
+                            {% else %}
+                                {% set gauge_color = "#ef4444" %}
+                            {% endif %}
+                            <div class="gauge-circle"
+                                 style="background: conic-gradient({{ gauge_color }} 0deg {{ confidence * 3.6 }}deg, rgba(229,231,235,0.3) {{ confidence * 3.6 }}deg 360deg);">
+                                <div class="gauge-inner">
+                                    <div class="gauge-value" style="color: {{ gauge_color }};">{{ "%.0f"|format(confidence) }}%</div>
+                                    <div class="gauge-label">Confidence</div>
+                                </div>
+                            </div>
+                            <div class="confidence-label">Confidence Score</div>
+                        </div>
+
+                        <!-- Low Confidence Warning -->
+                        {% if confidence < 30 %}
+                        <div class="low-confidence-alert" role="alert">
+                            <strong><i class="fas fa-exclamation-triangle mr-2" aria-hidden="true"></i>Low Confidence Alert</strong>
+                            <p>This assessment has lower confidence. We recommend consulting a healthcare professional for proper evaluation.</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Matching Symptoms -->
+                        <div class="symptoms-section">
+                            <h4><i class="fas fa-list-ul" aria-hidden="true"></i>&nbsp;Matching Symptoms</h4>
+                            <div class="symptoms-chips-results">
+                                {% for symptom in predictions[0].symptoms %}
+                                    {% if symptom %}
+                                    <span class="symptom-chip">
+                                        <i class="fas fa-check" aria-hidden="true"></i> {{ symptom }}
+                                    </span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Causes Section -->
+                        <div class="causes-section">
+                            <h4><i class="fas fa-lightbulb" aria-hidden="true"></i>&nbsp;Possible Causes</h4>
+                            <p>{{ recommendations.causes or 'No specific causes available.' }}</p>
+                        </div>
+
+                        <!-- AI Analysis -->
+                        {% if predictions[0].llm_analysis %}
+                        <div class="ai-analysis-box">
+                            <h4><i class="fas fa-brain" aria-hidden="true"></i>&nbsp;Detailed AI Analysis</h4>
+                            <p>{{ predictions[0].llm_analysis }}</p>
+                        </div>
+                        {% endif %}
+
+                        <div class="divider-line" aria-hidden="true"></div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons" role="group" aria-label="Actions">
+                            <button class="btn-featured btn-success" id="create-treatment-plan"
+                                    data-disease="{{ primary_prediction }}"
+                                    aria-label="Create a treatment plan for {{ primary_prediction }}">
+                                <i class="fas fa-notes-medical" aria-hidden="true"></i>Create Treatment Plan
+                            </button>
+                            <a href="{{ url_for('diagnosis.disease_dashboard', disease_name=primary_prediction) }}"
+                               class="btn-featured btn-primary">
+                                <i class="fas fa-book-medical" aria-hidden="true"></i>Medical Information
+                            </a>
+                            <a href="/doctors/recommend/{{ primary_prediction }}"
+                               class="btn-featured btn-secondary">
+                                <i class="fas fa-hospital-user" aria-hidden="true"></i>Find Specialists
+                            </a>
+                            <a href="/second-opinion" class="btn-featured btn-outline">
+                                <i class="fas fa-user-md" aria-hidden="true"></i>Get Second Opinion
+                            </a>
+                            <button type="button" id="printReportBtn" class="btn-featured btn-outline"
+                                    aria-label="Print this health report">
+                                <i class="fas fa-print" aria-hidden="true"></i>Print Report
+                            </button>
+                            <button type="button" id="shareResultBtn" class="btn-featured btn-outline"
+                                    data-result-id="{{ result_id }}"
+                                    aria-label="Copy shareable link to results">
+                                <i class="fas fa-share-alt" aria-hidden="true"></i>Share Results
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alternative Predictions -->
+                {% if predictions|length > 1 %}
+                <div class="alternatives-section" role="region" aria-label="Alternative diagnoses">
+                    <h3><i class="fas fa-exchange-alt" aria-hidden="true"></i>&nbsp;Alternative Possibilities</h3>
+                    <div class="alternatives-grid">
+                        {% for prediction in predictions[1:] %}
+                        <div class="alt-card">
+                            <div class="alt-card-header">
+                                <span class="alt-disease-name">{{ prediction.disease }}</span>
+                                <span class="badge"
+                                      style="background: {% if prediction.confidence >= 80 %}var(--success){% elif prediction.confidence >= 60 %}var(--info){% elif prediction.confidence >= 30 %}var(--warning){% else %}var(--danger){% endif %}; color: white; padding: var(--space-2) var(--space-3); border-radius: var(--radius-full); font-size: 0.8rem; font-weight: 600;">
+                                    {{ "%.1f"|format(prediction.confidence) }}%
+                                </span>
+                            </div>
+                            <div class="alt-card-body">
+                                <div class="confidence-bar">
+                                    <div class="confidence-bar-bg">
+                                        <div class="confidence-bar-fill" style="width: {{ [prediction.confidence, 100]|min }}%;"></div>
+                                    </div>
+                                    <div class="confidence-bar-label">{{ "%.0f"|format(prediction.confidence) }}%</div>
+                                </div>
+                                {% if prediction.llm_analysis %}
+                                <div class="alt-analysis">
+                                    <small><strong>Analysis:</strong> {{ prediction.llm_analysis }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="alt-card-footer">
+                                <a href="{{ url_for('diagnosis.disease_dashboard', disease_name=prediction.disease) }}"
+                                   style="color: var(--primary-600); text-decoration: none; font-weight: 600; display: inline-flex; align-items: center; gap: var(--space-2);">
+                                    <i class="fas fa-arrow-right" aria-hidden="true"></i>View Details
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- DDXPlus Clinical Differential Diagnosis -->
+                {% if ddx_predictions %}
+                <div class="card" style="margin-top: var(--space-6);" role="region" aria-label="Clinical differential diagnosis">
+                    <div class="card-header" style="background: linear-gradient(135deg, #16161d 0%, var(--primary-800) 100%);">
+                        <h3 style="margin:0; font-size:1.1rem; display:flex; align-items:center; gap:var(--space-2);">
+                            <i class="fas fa-dna" aria-hidden="true"></i>
+                            DDXPlus Clinical Differential
+                        </h3>
+                        <span style="font-size:0.75rem; opacity:0.85;">DistilBERT + KL Divergence model · 49 diseases</span>
+                    </div>
+                    <div class="card-body" style="padding: var(--space-4);">
+                        <p style="font-size:0.8rem; color:var(--text-muted); margin-bottom:var(--space-4);">
+                            Ranked differential based on a model trained with KL-divergence soft labels on 1 M clinical cases (DDXPlus dataset, NeurIPS 2022).
+                            This is a research tool — always consult a clinician.
+                        </p>
+                        <div style="display:flex; flex-direction:column; gap:var(--space-3);">
+                            {% for ddx in ddx_predictions %}
+                            <div style="display:flex; align-items:center; gap:var(--space-3);">
+                                <span style="min-width:1.4rem; font-weight:700; color:var(--primary-600); font-size:0.9rem;">{{ ddx.rank }}</span>
+                                <div style="flex:1;">
+                                    <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                                        <span style="font-weight:600; font-size:0.9rem;">{{ ddx.disease }}</span>
+                                        <span style="font-weight:700; font-size:0.85rem;
+                                            color: {% if ddx.confidence >= 50 %}#10b981{% elif ddx.confidence >= 25 %}#3b82f6{% elif ddx.confidence >= 10 %}#f59e0b{% else %}#6b7280{% endif %};">
+                                            {{ ddx.confidence }}%
+                                        </span>
+                                    </div>
+                                    <div style="height:6px; border-radius:3px; background:rgba(229,231,235,0.4); overflow:hidden;">
+                                        <div style="height:100%; border-radius:3px; width:{{ [ddx.confidence, 100]|min }}%;
+                                            background: {% if ddx.confidence >= 50 %}#10b981{% elif ddx.confidence >= 25 %}#3b82f6{% elif ddx.confidence >= 10 %}#f59e0b{% else %}#9ca3af{% endif %};">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Right Column: Recommendations & Info -->
+            <div>
+                <!-- Recommendations with Tabs -->
+                <div class="recommendations-section" role="region" aria-label="Treatment recommendations">
+                    <h3><i class="fas fa-prescription-bottle" aria-hidden="true"></i>&nbsp;Recommendations</h3>
+
+                    <div class="tabs-container">
+                        <div class="tabs-nav" role="tablist" aria-label="Recommendation categories">
+                            <button class="tab-button active" data-tab="medicines" role="tab" aria-selected="true" aria-controls="tab-medicines">
+                                <i class="fas fa-pills" aria-hidden="true"></i>Medicines
+                            </button>
+                            <button class="tab-button" data-tab="diet" role="tab" aria-selected="false" aria-controls="tab-diet">
+                                <i class="fas fa-apple-alt" aria-hidden="true"></i>Diet
+                            </button>
+                            <button class="tab-button" data-tab="workout" role="tab" aria-selected="false" aria-controls="tab-workout">
+                                <i class="fas fa-dumbbell" aria-hidden="true"></i>Exercise
+                            </button>
+                            <button class="tab-button" data-tab="precautions" role="tab" aria-selected="false" aria-controls="tab-precautions">
+                                <i class="fas fa-shield-alt" aria-hidden="true"></i>Precautions
+                            </button>
+                        </div>
+
+                        <!-- Medicines Tab -->
+                        <div class="tab-content-item active" data-tab-content="medicines" id="tab-medicines" role="tabpanel">
+                            <div class="tab-content-header">
+                                <i class="fas fa-pills" aria-hidden="true"></i>
+                                <span>Possible Medications</span>
+                            </div>
+                            <div style="padding: var(--space-6);">
+                                <p style="color: var(--text-muted); margin-bottom: var(--space-4); font-style: italic; font-size: 0.875rem;">
+                                    Always consult with a healthcare professional before taking any medication.
+                                </p>
+                                <div class="recommendation-list">
+                                    {% if recommendations.medicines and recommendations.medicines|length > 0 %}
+                                        {% for medicine in recommendations.medicines %}
+                                        <div class="recommendation-item">
+                                            <div class="recommendation-icon medicine">
+                                                <i class="fas fa-capsules" aria-hidden="true"></i>
+                                            </div>
+                                            <div class="recommendation-text">{{ medicine }}</div>
+                                        </div>
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="recommendation-list-text">No specific medications recommended. Consult a doctor.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Diet Tab -->
+                        <div class="tab-content-item" data-tab-content="diet" id="tab-diet" role="tabpanel">
+                            <div class="tab-content-header diet">
+                                <i class="fas fa-apple-alt" aria-hidden="true"></i>
+                                <span>Dietary Recommendations</span>
+                            </div>
+                            <div style="padding: var(--space-6); color: var(--text-primary); line-height: 1.7;">
+                                {{ recommendations.diet or "No specific diet recommendations available. Maintain a balanced, nutritious diet." }}
+                            </div>
+                        </div>
+
+                        <!-- Exercise Tab -->
+                        <div class="tab-content-item" data-tab-content="workout" id="tab-workout" role="tabpanel">
+                            <div class="tab-content-header workout">
+                                <i class="fas fa-dumbbell" aria-hidden="true"></i>
+                                <span>Exercise Recommendations</span>
+                            </div>
+                            <div style="padding: var(--space-6); color: var(--text-primary); line-height: 1.7;">
+                                {{ recommendations.workout or "No specific exercise recommendations available. Light activity as tolerated." }}
+                            </div>
+                        </div>
+
+                        <!-- Precautions Tab -->
+                        <div class="tab-content-item" data-tab-content="precautions" id="tab-precautions" role="tabpanel">
+                            <div class="tab-content-header precautions">
+                                <i class="fas fa-shield-alt" aria-hidden="true"></i>
+                                <span>Precautions &amp; Care</span>
+                            </div>
+                            <div style="padding: var(--space-6);">
+                                <div class="recommendation-list">
+                                    {% if recommendations.precautions and recommendations.precautions|length > 0 %}
+                                        {% for precaution in recommendations.precautions %}
+                                            {% if precaution %}
+                                            <div class="recommendation-item">
+                                                <div class="recommendation-icon precaution">
+                                                    <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+                                                </div>
+                                                <div class="recommendation-text">{{ precaution }}</div>
+                                            </div>
+                                            {% endif %}
+                                        {% endfor %}
+                                    {% else %}
+                                        <div class="recommendation-list-text">No specific precautions available.</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- When to See a Doctor -->
+                <div class="card when-to-see-card mt-6" role="region" aria-label="When to seek medical attention">
+                    <div class="card-header">
+                        <i class="fas fa-user-md" aria-hidden="true"></i>&nbsp;When to See a Doctor
+                    </div>
+                    <div class="card-body">
+                        <div class="recommendation-list">
+                            <div class="recommendation-item">
+                                <div class="recommendation-icon precaution">
+                                    <i class="fas fa-clock" aria-hidden="true"></i>
+                                </div>
+                                <div class="recommendation-text">Symptoms worsen or don't improve within 48 hours</div>
+                            </div>
+                            <div class="recommendation-item">
+                                <div class="recommendation-icon precaution">
+                                    <i class="fas fa-thermometer-full" aria-hidden="true"></i>
+                                </div>
+                                <div class="recommendation-text">High fever (above 103°F / 39.4°C) persists more than 2 days</div>
+                            </div>
+                            <div class="recommendation-item">
+                                <div class="recommendation-icon precaution">
+                                    <i class="fas fa-lungs" aria-hidden="true"></i>
+                                </div>
+                                <div class="recommendation-text">Difficulty breathing or chest pain develops or worsens</div>
+                            </div>
+                            <div class="recommendation-item">
+                                <div class="recommendation-icon precaution">
+                                    <i class="fas fa-brain" aria-hidden="true"></i>
+                                </div>
+                                <div class="recommendation-text">Sudden confusion, severe headache, or vision changes occur</div>
+                            </div>
+                            <div class="recommendation-item">
+                                <div class="recommendation-icon precaution">
+                                    <i class="fas fa-ambulance" aria-hidden="true"></i>
+                                </div>
+                                <div class="recommendation-text"><strong>Call 112/911 immediately</strong> for chest pain, difficulty breathing, or suspected stroke</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Severity Display (populated by JS from sessionStorage) -->
+                <div id="severityDisplay" class="card mt-6" style="display:none;" role="region" aria-label="Reported symptom severity">
+                    <div class="card-header">
+                        <i class="fas fa-thermometer-half" aria-hidden="true"></i>&nbsp;Reported Severity
+                    </div>
+                    <div class="card-body text-center" id="severityDisplayContent"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer-alert" role="note">
+            <strong>
+                <i class="fas fa-info-circle mr-2" aria-hidden="true"></i>Important Medical Disclaimer
+            </strong>
+            <p>This information is provided for educational purposes only and is <strong>not intended as medical advice or a diagnosis</strong>. Always consult with a qualified healthcare provider for proper diagnosis and treatment of any medical condition. In case of emergency, call 112 or 911 and seek immediate medical attention.</p>
+        </div>
+    </div>
+{% endblock %}

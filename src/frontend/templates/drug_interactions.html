@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Drug Interaction Checker{% endblock %}
+{% block meta_description %}Check for known drug interactions between your medications.{% endblock %}
+
+{% block extra_head %}
+<style>
+.drug-inputs-container { display:flex; flex-direction:column; gap:1rem; }
+.drug-input-group { display:flex; gap:0.5rem; align-items:flex-start; }
+.drug-input-group input { flex:1; }
+.drug-input-group .btn-remove { padding:var(--input-padding-y) var(--input-padding-x); border:1px solid var(--gray-300); background:var(--bg-secondary); color:var(--text-secondary); border-radius:var(--radius-md); cursor:pointer; transition:all 0.2s ease; }
+.drug-input-group .btn-remove:hover { background:var(--danger-light); color:var(--danger); border-color:var(--danger); }
+.interaction-card { padding:1.25rem; border-radius:var(--radius-md); margin-bottom:1rem; border-left:4px solid; }
+.interaction-card.severity-safe { background:var(--success-light); border-left-color:var(--success); }
+.interaction-card.severity-warning { background:var(--warning-light); border-left-color:var(--warning); }
+.interaction-card.severity-high { background:var(--danger-light); border-left-color:var(--danger); }
+.interaction-header { display:flex; align-items:center; gap:1rem; margin-bottom:0.75rem; flex-wrap:wrap; }
+.interaction-header strong { flex:1; font-weight:600; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12); max-width:700px;">
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-exclamation-triangle mr-2 text-primary" aria-hidden="true"></i>Drug Interaction Checker</h1>
+        <p class="text-secondary">Enter your medications to check for known interactions</p>
+    </div>
+
+    <div class="card shadow-md mb-6">
+        <div class="card-header">
+            <h5><i class="fas fa-capsules mr-2" aria-hidden="true"></i>Enter Your Medications</h5>
+        </div>
+        <div class="card-body">
+            <div id="drug-inputs" class="drug-inputs-container" role="group" aria-label="Medication inputs"></div>
+
+            <button class="btn btn-outline btn-sm mt-4" id="add-drug" type="button">
+                <i class="fas fa-plus mr-1" aria-hidden="true"></i>Add Another Drug
+            </button>
+
+            <button class="btn btn-primary btn-lg mt-6" id="check-btn" style="width:100%;">
+                <i class="fas fa-search mr-2" aria-hidden="true"></i>Check Interactions
+            </button>
+
+            <div class="alert alert-info mt-4">
+                <div class="alert-icon"><i class="fas fa-info-circle" aria-hidden="true"></i></div>
+                <div class="alert-content"><strong>Minimum 2 drugs required</strong> to check for interactions</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="results" style="display:none;" role="region" aria-label="Interaction results" aria-live="polite">
+        <div id="safe-alert" class="alert alert-success mb-4" style="display:none;">
+            <div class="alert-icon"><i class="fas fa-check-circle" aria-hidden="true"></i></div>
+            <div class="alert-content">
+                <strong>No Known Interactions Found</strong>
+                <p>The entered medications appear to be safe together. Always verify with your healthcare provider.</p>
+            </div>
+        </div>
+        <div id="interactions-list"></div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function DrugChecker() {
+    'use strict';
+
+    function createDrugInput() {
+        var div = document.createElement('div');
+        div.className = 'drug-input-group';
+        div.innerHTML = '<input type="text" class="form-input drug-input" placeholder="Drug name (e.g. Aspirin)" aria-label="Drug name" /><button type="button" class="btn-remove" aria-label="Remove drug"><i class="fas fa-trash" aria-hidden="true"></i></button>';
+        div.querySelector('.btn-remove').addEventListener('click', function() { div.remove(); });
+        return div;
+    }
+
+    var container = document.getElementById('drug-inputs');
+    container.appendChild(createDrugInput());
+    container.appendChild(createDrugInput());
+
+    document.getElementById('add-drug').addEventListener('click', function() {
+        container.appendChild(createDrugInput());
+    });
+
+    document.getElementById('check-btn').addEventListener('click', function() {
+        var drugs = Array.from(document.querySelectorAll('.drug-input')).map(function(i) { return i.value.trim(); }).filter(Boolean);
+        if (drugs.length < 2) {
+            alert('Please enter at least 2 drug names.');
+            return;
+        }
+
+        var btn = this, orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Checking...';
+
+        fetch('/api/drug-interactions', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({drugs: drugs})
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var resultsDiv = document.getElementById('results');
+            var safeAlert = document.getElementById('safe-alert');
+            var list = document.getElementById('interactions-list');
+            resultsDiv.style.display = '';
+            list.innerHTML = '';
+            if (data.safe) {
+                safeAlert.style.display = '';
+            } else {
+                safeAlert.style.display = 'none';
+                (data.interactions || []).forEach(function(ix) {
+                    var cls = ix.severity === 'high' ? 'severity-high' : ix.severity === 'warning' ? 'severity-warning' : 'severity-safe';
+                    var badge = '<span class="badge ' + (ix.severity === 'high' ? 'badge-danger' : 'badge-warning') + '">' + ix.severity + '</span>';
+                    var card = document.createElement('div');
+                    card.className = 'interaction-card ' + cls;
+                    card.innerHTML = '<div class="interaction-header"><i class="fas fa-' + (ix.severity === 'high' ? 'exclamation-circle' : 'exclamation-triangle') + '" aria-hidden="true"></i><strong>' + ix.drug_a + ' + ' + ix.drug_b + '</strong>' + badge + '</div><p style="margin:0;">' + ix.description + '</p>';
+                    list.appendChild(card);
+                });
+            }
+        })
+        .catch(function() { alert('Error checking interactions. Please try again.'); })
+        .finally(function() { btn.disabled = false; btn.innerHTML = orig; });
+    });
+})();
+</script>
+{% endblock %}

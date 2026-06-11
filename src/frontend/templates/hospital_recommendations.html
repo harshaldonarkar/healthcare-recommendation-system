@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% block title %}Recommended Hospitals{% endblock %}
+{% block meta_description %}Find hospitals recommended for treating {{ disease }} with Health Advisor.{% endblock %}
+
+{% block extra_head %}
+<style>
+.search-group { display:flex; gap:0.5rem; align-items:stretch; }
+.search-group input { flex:1; }
+.search-group button { padding:var(--input-padding-y) 1.5rem; }
+.hospital-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(350px,1fr)); gap:1.5rem; margin-bottom:2rem; }
+.hospital-card { background:var(--bg-secondary); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); overflow:hidden; transition:all 0.3s ease; display:flex; flex-direction:column; border:1px solid var(--border-color); }
+.hospital-card:hover { transform:translateY(-4px); box-shadow:var(--shadow-lg); }
+.hospital-card-header { padding:1rem 1.25rem; background-color:var(--bg-tertiary); border-bottom:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:flex-start; gap:1rem; }
+.hospital-card-title { flex:1; }
+.hospital-card-title h6 { margin:0; font-weight:600; color:var(--text-primary); }
+.stars-display { display:flex; gap:0.25rem; font-size:0.875rem; }
+.stars-display .fas { color:#fbbf24; }
+.stars-display .far { color:var(--gray-300); }
+.hospital-card-body { padding:1.25rem; flex:1; }
+.info-row { display:flex; align-items:flex-start; gap:0.75rem; margin-bottom:0.75rem; font-size:0.95rem; }
+.info-row i { color:var(--primary-600); width:1.25rem; flex-shrink:0; margin-top:0.125rem; }
+.badges-group { display:flex; flex-wrap:wrap; gap:0.5rem; margin:0.75rem 0; }
+.hospital-section-title { font-size:0.875rem; font-weight:600; color:var(--text-secondary); margin-top:0.75rem; margin-bottom:0.5rem; }
+.contact-info { font-size:0.875rem; }
+.contact-info p { margin:0.25rem 0; }
+.hospital-card-footer { padding:1rem 1.25rem; background-color:var(--bg-tertiary); border-top:1px solid var(--border-color); display:flex; gap:0.75rem; }
+.hospital-card-footer button { flex:1; padding:0.5rem 0.75rem; font-size:0.875rem; }
+.no-results { text-align:center; padding:2rem 1rem; }
+.no-results i { font-size:2.5rem; color:var(--warning); margin-bottom:1rem; display:block; }
+.grid-actions { text-align:center; margin-top:2rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <div class="mb-6">
+        <a href="{{ url_for('diagnosis.home') }}" class="btn btn-outline btn-sm">
+            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Back
+        </a>
+    </div>
+
+    <div class="bg-gradient-primary text-white" style="padding:var(--space-8); border-radius:var(--radius-xl); margin-bottom:var(--space-8); background:linear-gradient(135deg,#14b8a6 0%,#0f766e 100%);">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-hospital-alt mr-2" aria-hidden="true"></i>Recommended Hospitals</h1>
+        <p style="opacity:0.9;">Hospitals for treating <strong>{{ disease }}</strong></p>
+    </div>
+
+    <!-- City Search -->
+    <div class="card shadow-md mb-6">
+        <div class="card-body">
+            <div class="search-group">
+                <input type="text" id="cityInput" class="form-input" list="cityList"
+                       placeholder="Enter your city to find nearby hospitals" autocomplete="off"
+                       aria-label="City name" />
+                <datalist id="cityList"></datalist>
+                <button id="findBtn" class="btn btn-primary">
+                    <i class="fas fa-search mr-1" aria-hidden="true"></i>Find
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div id="recommended-hospitals" role="region" aria-label="Hospital results">
+        <div class="grid grid-cols-3 gap-6" id="skeleton-hospitals-grid" aria-hidden="true">
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+            <div class="skeleton skeleton-card"></div>
+        </div>
+    </div>
+
+    <!-- Info Card -->
+    <div class="card shadow-md mt-6">
+        <div class="card-header" style="background:var(--primary-600); color:white;">
+            <h5 style="margin:0;"><i class="fas fa-info-circle mr-2" aria-hidden="true"></i>About Hospital Recommendations</h5>
+        </div>
+        <div class="card-body">
+            <p>Our hospital recommendations are based on your diagnosed condition. We look for hospitals that offer the specialists and facilities typically needed for treating <strong>{{ disease }}</strong>.</p>
+            <p>For more specific results, enter your city in the search box above.</p>
+            <div class="alert alert-info">
+                <div class="alert-icon"><i class="fas fa-info-circle" aria-hidden="true"></i></div>
+                <div class="alert-content">Remember to consult with your regular healthcare provider before choosing a hospital.</div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+(function HospitalRecommendations() {
+    'use strict';
+    var disease = {{ disease | tojson }};
+
+    fetch('/api/doctors/cities')
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            var dl = document.getElementById('cityList');
+            (data.cities || []).forEach(function(city) {
+                var opt = document.createElement('option');
+                opt.value = city;
+                dl.appendChild(opt);
+            });
+        })
+        .catch(function() {});
+
+    loadRecommendations('');
+
+    document.getElementById('findBtn').addEventListener('click', function() {
+        loadRecommendations(document.getElementById('cityInput').value.trim());
+    });
+    document.getElementById('cityInput').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') loadRecommendations(this.value.trim());
+    });
+
+    function loadRecommendations(city) {
+        var container = document.getElementById('recommended-hospitals');
+        container.innerHTML = '<div class="text-center" style="padding:var(--space-12);"><i class="fas fa-spinner" style="font-size:2rem;color:var(--primary-600);display:block;margin-bottom:var(--space-4);animation:spin 0.8s linear infinite;" aria-hidden="true"></i><p class="text-muted">Finding hospitals' + (city ? ' in ' + city : '') + '...</p></div>';
+        var params = new URLSearchParams();
+        if (city) params.append('city', city);
+        fetch('/api/doctors/recommend/' + encodeURIComponent(disease) + '?' + params.toString())
+            .then(function(r) { return r.json(); })
+            .then(function(data) { renderHospitals(data.recommendations || [], city); })
+            .catch(function() {
+                container.innerHTML = '<div class="alert alert-danger"><div class="alert-icon"><i class="fas fa-exclamation-circle"></i></div><div class="alert-content">An error occurred while finding hospitals. Please try again.</div></div>';
+            });
+    }
+
+    function renderHospitals(hospitals, city) {
+        var container = document.getElementById('recommended-hospitals');
+        if (!hospitals.length) {
+            container.innerHTML = '<div class="no-results"><i class="fas fa-exclamation-triangle"></i><h4 class="font-semibold">No Hospitals Found</h4><p class="text-muted">We couldn\'t find hospitals for ' + disease + (city ? ' in ' + city : '') + '.</p><a href="/doctors/search" class="btn btn-primary" style="margin-top:var(--space-4);">Search All Hospitals</a></div>';
+            return;
+        }
+        var html = '<h3 class="text-2xl font-bold mb-6"><i class="fas fa-hospital-alt mr-2" aria-hidden="true"></i>Hospitals for ' + disease + (city ? ' in ' + city : '') + '</h3><div class="hospital-grid">';
+        hospitals.forEach(function(h) {
+            var rating = Math.min(Math.round(h.rating || 0), 5);
+            var stars = '';
+            for (var i = 0; i < 5; i++) stars += i < rating ? '<i class="fas fa-star"></i>' : '<i class="far fa-star"></i>';
+            var specialties = '';
+            if (h.specialty) {
+                var sArr = h.specialty.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+                specialties = sArr.slice(0, 3).map(function(s) { return '<span class="badge badge-primary">' + s + '</span>'; }).join('');
+                if (sArr.length > 3) specialties += '<span class="badge badge-primary">+' + (sArr.length - 3) + '</span>';
+            }
+            var facilities = '';
+            if (h.facilities && h.facilities.length) {
+                var fArr = h.facilities.filter(function(f) { return f.trim(); });
+                facilities = fArr.slice(0, 3).map(function(f) { return '<span class="badge badge-info">' + f.trim() + '</span>'; }).join('');
+                if (fArr.length > 3) facilities += '<span class="badge badge-info">+' + (fArr.length - 3) + '</span>';
+            }
+            var emergency = h.emergency_services ? '<span class="badge badge-danger"><i class="fas fa-ambulance mr-1"></i>Emergency</span>' : '';
+            var contacts = Object.entries(h.contact_info || {}).map(function(e) { return '<p>' + e[0] + ': ' + e[1] + '</p>'; }).join('') || '<p class="text-muted">No contact info</p>';
+            html += '<div class="hospital-card">'
+                + '<div class="hospital-card-header"><div class="hospital-card-title"><h6>' + h.name + '</h6><small class="text-muted">' + (h.type || '') + ' Hospital</small></div><div class="stars-display">' + stars + '</div></div>'
+                + '<div class="hospital-card-body">'
+                + (h.address ? '<div class="info-row"><i class="fas fa-map-marker-alt"></i><span>' + h.address + '</span></div>' : '')
+                + (h.bed_count ? '<div class="info-row"><i class="fas fa-bed"></i><span>' + h.bed_count + ' beds</span></div>' : '')
+                + '<div class="badges-group">' + emergency + '</div>'
+                + (specialties ? '<div><div class="hospital-section-title">Specialties</div><div class="badges-group">' + specialties + '</div></div>' : '')
+                + (facilities ? '<div><div class="hospital-section-title">Facilities</div><div class="badges-group">' + facilities + '</div></div>' : '')
+                + '<div class="hospital-section-title">Contact</div><div class="contact-info">' + contacts + '</div>'
+                + '</div>'
+                + '<div class="hospital-card-footer">'
+                + '<button class="btn btn-outline" onclick="alert(\'Directions feature coming soon.\')"><i class="fas fa-directions mr-1"></i>Directions</button>'
+                + '<button class="btn btn-primary" onclick="alert(\'Scheduling feature coming soon.\')"><i class="fas fa-calendar-plus mr-1"></i>Schedule</button>'
+                + '</div></div>';
+        });
+        html += '</div><div class="grid-actions"><a href="/doctors/search" class="btn btn-outline"><i class="fas fa-search mr-1"></i>Search All Hospitals</a></div>';
+        container.innerHTML = html;
+    }
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}Shared Health Result{% endblock %}
+{% block meta_description %}A shared Health Advisor result — {{ disease }}{% endblock %}
+
+{% block content %}
+<section class="py-16" style="min-height:70vh; display:flex; align-items:center; justify-content:center;">
+    <div style="width:100%; max-width:600px; padding:0 var(--space-4);">
+        <div class="card card-glass">
+            <div class="card-body" style="padding:var(--space-10);">
+                <div class="text-center mb-6">
+                    <div style="font-size:3rem; color:var(--primary-600); margin-bottom:var(--space-4);" aria-hidden="true">
+                        <i class="fas fa-share-alt"></i>
+                    </div>
+                    <h1 class="text-2xl font-bold mb-2">Shared Health Result</h1>
+                    <p class="text-secondary">This result was shared via Health Advisor</p>
+                </div>
+
+                <div class="card mb-6" style="border:2px solid var(--primary-300);">
+                    <div class="card-body">
+                        <div class="flex justify-between align-center mb-4">
+                            <h2 class="text-xl font-bold">{{ disease }}</h2>
+                            <span class="badge badge-primary">{{ confidence }}% confidence</span>
+                        </div>
+                        {% if symptoms %}
+                        <p class="text-secondary text-sm">
+                            <strong>Symptoms described:</strong> {{ symptoms }}{% if symptoms | length >= 200 %}…{% endif %}
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="alert alert-warning mb-6" role="alert">
+                    <div class="alert-icon"><i class="fas fa-exclamation-triangle" aria-hidden="true"></i></div>
+                    <div class="alert-content">
+                        <strong>Medical Disclaimer:</strong> This is an AI-generated result for informational purposes only.
+                        Always consult a qualified healthcare professional for medical advice.
+                    </div>
+                </div>
+
+                <div class="flex gap-4 justify-center">
+                    <a href="/" class="btn btn-primary">
+                        <i class="fas fa-stethoscope mr-2" aria-hidden="true"></i>Analyze Your Symptoms
+                    </a>
+                    <a href="/diseases-list" class="btn btn-outline">
+                        <i class="fas fa-book-medical mr-2" aria-hidden="true"></i>Disease Library
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endblock %}

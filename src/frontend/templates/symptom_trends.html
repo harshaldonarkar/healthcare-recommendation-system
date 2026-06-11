@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}Symptom Trends{% endblock %}
+{% block meta_description %}Track symptom severity trends over time for your treatment plans.{% endblock %}
+
+{% block extra_head %}
+<style>
+.cards-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:var(--space-4); margin-top:var(--space-6); }
+.stat-card-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:var(--space-3); }
+.stat-title { margin:0; font-weight:600; }
+.stat-value { font-size:2rem; font-weight:700; color:var(--primary-600); margin-bottom:var(--space-2); }
+.stat-unit { font-size:0.875rem; color:var(--text-muted); font-weight:400; }
+.severity-display { display:flex; align-items:center; gap:0.5rem; }
+.severity-progress-container { flex:1; height:8px; background:var(--gray-200); border-radius:4px; overflow:hidden; min-width:100px; }
+.severity-progress-bar { height:100%; border-radius:4px; transition:width 0.3s; }
+.border-l-success { border-left:4px solid var(--success); }
+.border-l-danger { border-left:4px solid var(--danger); }
+.border-l-secondary { border-left:4px solid var(--gray-400); }
+</style>
+{% endblock %}
+
+{% block content %}
+<main class="container" style="padding-top:var(--space-8); padding-bottom:var(--space-12);">
+    <div class="mb-6">
+        <a href="/my-treatment-plans" class="btn btn-outline btn-sm">
+            <i class="fas fa-arrow-left mr-1" aria-hidden="true"></i>Back to Plans
+        </a>
+    </div>
+
+    <div class="mb-8">
+        <h1 class="text-4xl font-bold mb-2"><i class="fas fa-chart-line mr-2 text-primary" aria-hidden="true"></i>Symptom Trends</h1>
+        <p class="text-secondary">Disease: <strong>{{ disease }}</strong></p>
+    </div>
+
+    {% if not symptom_data %}
+    <div class="alert alert-info" role="status">
+        <div class="alert-icon"><i class="fas fa-info-circle" aria-hidden="true"></i></div>
+        <div class="alert-content">
+            <strong>No Symptom Data Yet</strong>
+            <p class="mt-1">Log your symptoms from your treatment tracker to see trends here.</p>
+        </div>
+    </div>
+    {% else %}
+    <!-- Summary Cards -->
+    <div class="cards-grid">
+        {% for symptom, logs in symptom_data.items() %}
+        {% set latest = logs[-1] %}
+        {% set first = logs[0] %}
+        {% set trend = 'improving' if latest.severity < first.severity else ('worsening' if latest.severity > first.severity else 'stable') %}
+        {% set badge_color = 'success' if trend == 'improving' else ('danger' if trend == 'worsening' else 'secondary') %}
+        <div class="card border-l-{{ badge_color }}">
+            <div class="card-body">
+                <div class="stat-card-header">
+                    <h6 class="stat-title">{{ symptom | capitalize }}</h6>
+                    <span class="badge badge-{{ badge_color }}">{{ trend }}</span>
+                </div>
+                <div class="stat-value">{{ latest.severity }}<span class="stat-unit">/10</span></div>
+                <small class="text-muted">{{ logs|length }} log{{ 's' if logs|length != 1 }}</small>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Trend Chart -->
+    <div class="card shadow-md mt-6">
+        <div class="card-header">
+            <h5><i class="fas fa-chart-line mr-2" aria-hidden="true"></i>Severity Over Time</h5>
+        </div>
+        <div class="card-body">
+            <canvas id="symptomsChart" style="max-height:400px;"></canvas>
+        </div>
+    </div>
+
+    <!-- Log Table -->
+    <div class="card shadow-md mt-6">
+        <div class="card-header">
+            <h5><i class="fas fa-list mr-2" aria-hidden="true"></i>All Symptom Logs</h5>
+        </div>
+        <div class="card-body" style="padding:0; overflow-x:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Symptom</th>
+                        <th>Severity</th>
+                        <th>Notes</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for symptom, logs in symptom_data.items() %}
+                        {% for log in logs %}
+                        <tr>
+                            <td class="text-muted">{{ log.date }}</td>
+                            <td class="font-semibold">{{ symptom | capitalize }}</td>
+                            <td>
+                                <div class="severity-display">
+                                    <div class="severity-progress-container">
+                                        <div class="severity-progress-bar"
+                                             style="width:{{ log.severity * 10 }}%; background-color:{% if log.severity >= 7 %}var(--danger){% elif log.severity >= 4 %}var(--warning){% else %}var(--success){% endif %};"></div>
+                                    </div>
+                                    <span>{{ log.severity }}</span>
+                                </div>
+                            </td>
+                            <td class="text-muted text-sm">{{ log.notes or '-' }}</td>
+                        </tr>
+                        {% endfor %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</main>
+{% endblock %}
+
+{% block extra_head %}{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block extra_scripts %}
+{% if symptom_data %}
+<script>
+(function() {
+    var symptomData = {{ symptom_data | tojson }};
+    var colours = ['#14b8a6','#ef4444','#10b981','#f59e0b','#8b5cf6','#3b82f6'];
+    var datasets = Object.entries(symptomData).map(function(entry, i) {
+        var symptom = entry[0], logs = entry[1];
+        return {
+            label: symptom.charAt(0).toUpperCase() + symptom.slice(1),
+            data: logs.map(function(l) { return {x: l.date, y: l.severity}; }),
+            borderColor: colours[i % colours.length],
+            backgroundColor: colours[i % colours.length] + '1a',
+            borderWidth: 2, tension: 0.3, fill: false, pointRadius: 4, pointHoverRadius: 6,
+            pointBackgroundColor: colours[i % colours.length],
+        };
+    });
+    new Chart(document.getElementById('symptomsChart'), {
+        type: 'line',
+        data: {datasets: datasets},
+        options: {
+            responsive: true,
+            interaction: {mode: 'index', intersect: false},
+            scales: {
+                x: {type: 'category', title: {display: true, text: 'Date'}, grid: {display: false}},
+                y: {beginAtZero: true, min: 0, max: 10, title: {display: true, text: 'Severity (1-10)'}, ticks: {stepSize: 1}},
+            },
+            plugins: {
+                legend: {position: 'top', labels: {font: {size: 12}, padding: 15, usePointStyle: true}},
+            },
+        },
+    });
+})();
+</script>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,13 @@
+{
+    "pythonVersion": "3.12",
+    "venvPath": ".",
+    "venv": "venv",
+    "extraPaths": [
+        "src/backend"
+    ],
+    "exclude": [
+        "venv",
+        "myenv",
+        "results"
+    ]
+}
