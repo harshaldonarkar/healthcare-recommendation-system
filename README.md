@@ -1,12 +1,30 @@
 # Health Advisor — AI-Powered Healthcare Recommendation System
 
+[![Tests](https://github.com/harshaldonarkar/healthcare-recommendation-system/actions/workflows/tests.yml/badge.svg)](https://github.com/harshaldonarkar/healthcare-recommendation-system/actions/workflows/tests.yml)
+
 > A personalized healthcare recommendation system built with BERT, Flask, and multi-provider LLM integration. Predicts diseases from natural language symptoms, generates actionable treatment plans, analyzes lab reports, and connects patients with relevant specialists.
+
+**Live demo:** coming soon &nbsp;|&nbsp; Demo credentials (once deployed, and for local runs): `demo` / `demo123`
+
+---
+
+## Results
+
+Trained and evaluated on the [DDxPlus](https://arxiv.org/abs/2205.09148) dataset (1.03M clinical cases, 49 diseases, 134,529 held-out test cases). Full methodology and significance testing in [`docs/paper.md`](docs/paper.md).
+
+| Model | Acc@1 | Macro-F1 | NDCG@3 | Mean KL ↓ |
+|---|---|---|---|---|
+| TF-IDF + Logistic Regression (baseline) | 99.51% | 0.994 | 0.748 | 6.288 |
+| **DistilBERT + KL divergence (ours)** | **98.51%** | **0.984** | **0.921** | **0.416** |
+
+The KL-divergence training objective trades ~1% top-1 accuracy for a **15× reduction in calibration error** and a large NDCG@3 gain — the model doesn't just get the top guess right more often, it ranks the correct diagnosis higher across the full differential. See [Disease Prediction Pipeline](#disease-prediction-pipeline) for how this feeds the live app.
 
 ---
 
 ## Table of Contents
 
 - [Overview](#overview)
+- [Results](#results)
 - [Features](#features)
 - [Tech Stack](#tech-stack)
 - [Project Structure](#project-structure)
@@ -439,15 +457,20 @@ Treatment-plan routes are session-protected: requests for another user's data re
 
 ## Screenshots
 
-| Page | Description |
-|---|---|
-| **Homepage** | Hero section with gradient, glassmorphic symptom search card, stats bar, feature cards |
-| **Results** | Circular confidence gauge, AI explanation, tabbed recommendations, specialist cards |
-| **Treatment Tracker** | Circular progress ring, step-by-step cards, Chart.js symptom trend chart |
-| **Lab Analysis** | Drag-and-drop dropzone, color-coded result cards (normal/warning/abnormal) |
-| **Disease Dashboard** | CSS timeline, stat cards, prevention tips, specialist recommendations |
-| **Doctor Search** | CSS star ratings, hospital cards with facility tags, city autocomplete |
-| **Interactive Analyzer** | Real-time chat with AI, typing indicator, user/system message bubbles |
+**Homepage** — Hero section with gradient, glassmorphic symptom search card, stats bar
+![Homepage](screenshots/home.png)
+
+**Results** — Circular confidence gauge, AI explanation, tabbed recommendations
+![Results](screenshots/results.png)
+
+**Treatment Tracker** — Circular progress ring, step-by-step cards, quick actions
+![Treatment Tracker](screenshots/treatment-tracker.png)
+
+**Lab Analysis** — Drag-and-drop dropzone for PDF/image lab report upload
+![Lab Analysis](screenshots/lab-analysis.png)
+
+**Doctor Search** — City-based hospital search with type filtering
+![Doctor Search](screenshots/doctor-search.png)
 
 ---
 
